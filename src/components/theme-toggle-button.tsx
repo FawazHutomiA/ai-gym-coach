@@ -5,6 +5,7 @@ import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/components/ui/utils";
+import { useI18n } from "@/contexts/i18n-context";
 
 type ThemeToggleButtonProps = {
   className?: string;
@@ -15,6 +16,7 @@ type ThemeToggleButtonProps = {
 export function ThemeToggleButton({ className, iconClassName }: ThemeToggleButtonProps) {
   const [mounted, setMounted] = useState(false);
   const { theme, setTheme } = useTheme();
+  const { t } = useI18n();
 
   useEffect(() => {
     setMounted(true);
@@ -29,7 +31,7 @@ export function ThemeToggleButton({ className, iconClassName }: ThemeToggleButto
       size="icon"
       className={className}
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      aria-label="Toggle color theme"
+      aria-label={t("theme.toggleAria")}
     >
       {!mounted ? (
         <span className={cn("inline-block shrink-0", size)} aria-hidden />

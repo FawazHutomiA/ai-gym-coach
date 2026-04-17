@@ -19,6 +19,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { User, Mail, Phone, Ruler, Weight, Bell, Save, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { useI18n } from "@/contexts/i18n-context";
+import { LanguageSwitcher } from "@/components/language-switcher";
 
 const STORAGE_KEY = "ai-gym-coach-profile";
 
@@ -64,6 +66,7 @@ function initials(name: string): string {
 }
 
 export function UserProfile() {
+  const { t } = useI18n();
   const [profile, setProfile] = useState<UserProfileData>(defaultProfile);
 
   useEffect(() => {
@@ -74,24 +77,27 @@ export function UserProfile() {
     setProfile((p) => ({ ...p, [key]: value }));
   };
 
+  const goalLabel = (g: UserProfileData["goal"]) => t(`profile.goal.${g}`);
+
   const handleSave = () => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
-      toast.success("Profile saved", {
-        description: "Your settings are stored in this browser.",
+      toast.success(t("profile.toast.saved"), {
+        description: t("profile.toast.savedDesc"),
       });
     } catch {
-      toast.error("Could not save profile");
+      toast.error(t("profile.toast.error"));
     }
   };
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-4xl font-bold mb-2">Profile</h1>
-        <p className="text-muted-foreground">
-          Manage your account and preferences for AI Gym Coach.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-4xl font-bold mb-2">{t("profile.title")}</h1>
+          <p className="text-muted-foreground">{t("profile.subtitle")}</p>
+        </div>
+        <LanguageSwitcher variant="compact" className="shrink-0" />
       </div>
 
       <Card className="border-2 overflow-hidden">
@@ -105,17 +111,13 @@ export function UserProfile() {
             <div className="flex-1 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-2xl font-semibold">{profile.displayName}</h2>
-                <Badge variant="secondary" className="capitalize">
-                  {profile.goal}
-                </Badge>
+                <Badge variant="secondary">{goalLabel(profile.goal)}</Badge>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Member · progress synced locally in this browser
-              </p>
+              <p className="text-sm text-muted-foreground">{t("profile.memberNote")}</p>
             </div>
             <Button onClick={handleSave} className="shrink-0 gap-2 sm:self-start">
               <Save className="size-4" />
-              Save changes
+              {t("profile.saveChanges")}
             </Button>
           </div>
         </CardContent>
@@ -126,69 +128,70 @@ export function UserProfile() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <User className="size-5 text-primary" />
-              Personal info
+              {t("profile.personalInfo")}
             </CardTitle>
-            <CardDescription>How we address you and reach you.</CardDescription>
+            <CardDescription>{t("profile.personalInfoDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="displayName">Display name</Label>
+              <Label htmlFor="displayName">{t("profile.displayName")}</Label>
               <Input
                 id="displayName"
                 value={profile.displayName}
                 onChange={(e) => update("displayName", e.target.value)}
-                placeholder="Your name"
+                placeholder={t("profile.displayNamePh")}
                 autoComplete="name"
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email" className="flex items-center gap-2">
                 <Mail className="size-3.5" />
-                Email
+                {t("profile.email")}
               </Label>
               <Input
                 id="email"
                 type="email"
                 value={profile.email}
                 onChange={(e) => update("email", e.target.value)}
-                placeholder="you@example.com"
+                placeholder={t("profile.emailPh")}
                 autoComplete="email"
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone" className="flex items-center gap-2">
                 <Phone className="size-3.5" />
-                Phone <span className="text-muted-foreground font-normal">(optional)</span>
+                {t("profile.phone")}{" "}
+                <span className="text-muted-foreground font-normal">{t("profile.phoneOptional")}</span>
               </Label>
               <Input
                 id="phone"
                 type="tel"
                 value={profile.phone}
                 onChange={(e) => update("phone", e.target.value)}
-                placeholder="+62 …"
+                placeholder={t("profile.phonePh")}
                 autoComplete="tel"
               />
             </div>
             <div className="space-y-2">
-              <Label>Fitness goal</Label>
+              <Label>{t("profile.fitnessGoal")}</Label>
               <Select value={profile.goal} onValueChange={(v) => update("goal", v as UserProfileData["goal"])}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select goal" />
+                  <SelectValue placeholder={t("profile.selectGoal")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cutting">Cutting — lose fat</SelectItem>
-                  <SelectItem value="bulking">Bulking — build muscle</SelectItem>
-                  <SelectItem value="maintenance">Maintenance — stay lean</SelectItem>
+                  <SelectItem value="cutting">{t("profile.goal.cutting")}</SelectItem>
+                  <SelectItem value="bulking">{t("profile.goal.bulking")}</SelectItem>
+                  <SelectItem value="maintenance">{t("profile.goal.maintenance")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="bio">Bio</Label>
+              <Label htmlFor="bio">{t("profile.bio")}</Label>
               <Textarea
                 id="bio"
                 value={profile.bio}
                 onChange={(e) => update("bio", e.target.value)}
-                placeholder="Short intro, injuries to note, favorite lifts…"
+                placeholder={t("profile.bioPh")}
                 rows={4}
                 className="resize-y min-h-[100px]"
               />
@@ -201,16 +204,16 @@ export function UserProfile() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Sparkles className="size-5 text-primary" />
-                Body metrics
+                {t("profile.bodyMetrics")}
               </CardTitle>
-              <CardDescription>Used to personalize calorie and volume suggestions.</CardDescription>
+              <CardDescription>{t("profile.bodyMetricsDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="height" className="flex items-center gap-2">
                     <Ruler className="size-3.5" />
-                    Height (cm)
+                    {t("profile.heightCm")}
                   </Label>
                   <Input
                     id="height"
@@ -223,7 +226,7 @@ export function UserProfile() {
                 <div className="space-y-2">
                   <Label htmlFor="weight" className="flex items-center gap-2">
                     <Weight className="size-3.5" />
-                    Weight (kg)
+                    {t("profile.weightKg")}
                   </Label>
                   <Input
                     id="weight"
@@ -241,22 +244,20 @@ export function UserProfile() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Bell className="size-5 text-primary" />
-                Notifications
+                {t("profile.notifications")}
               </CardTitle>
-              <CardDescription>Control reminders in this demo (stored locally).</CardDescription>
+              <CardDescription>{t("profile.notificationsDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted/30 p-4">
                 <div className="space-y-0.5">
-                  <p className="text-sm font-medium">Email updates</p>
-                  <p className="text-xs text-muted-foreground">
-                    Tips, streaks, and weekly summaries (when email is connected).
-                  </p>
+                  <p className="text-sm font-medium">{t("profile.emailUpdates")}</p>
+                  <p className="text-xs text-muted-foreground">{t("profile.emailUpdatesDesc")}</p>
                 </div>
                 <Switch
                   checked={profile.emailNotifications}
                   onCheckedChange={(v) => update("emailNotifications", v)}
-                  aria-label="Email notifications"
+                  aria-label={t("profile.emailNotifAria")}
                 />
               </div>
             </CardContent>
@@ -267,12 +268,10 @@ export function UserProfile() {
       <Separator />
 
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <p className="text-sm text-muted-foreground">
-          Data is saved only in your browser (localStorage). Connect a backend later for sync across devices.
-        </p>
+        <p className="text-sm text-muted-foreground">{t("profile.footerNote")}</p>
         <Button onClick={handleSave} size="lg" className="gap-2">
           <Save className="size-4" />
-          Save profile
+          {t("profile.saveProfile")}
         </Button>
       </div>
     </div>

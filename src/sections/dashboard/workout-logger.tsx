@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { PenSquare, Plus, Trash2, Check, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
+import { useI18n } from "@/contexts/i18n-context";
 
 type Set = {
   id: string;
@@ -24,35 +25,41 @@ type Set = {
 
 type Exercise = {
   id: string;
-  name: string;
+  nameKey: string;
   sets: Set[];
 };
 
-const exerciseList = [
-  "Bench Press",
-  "Incline Dumbbell Press",
-  "Shoulder Press",
-  "Lateral Raises",
-  "Tricep Dips",
-  "Cable Tricep Extensions",
-  "Squats",
-  "Deadlifts",
-  "Pull-ups",
-  "Barbell Rows",
-  "Leg Press",
-  "Romanian Deadlifts",
-];
+const exerciseKeys = [
+  "logger.ex.benchPress",
+  "logger.ex.inclineDb",
+  "logger.ex.shoulderPress",
+  "logger.ex.lateralRaises",
+  "logger.ex.tricepDips",
+  "logger.ex.cableTricep",
+  "logger.ex.squats",
+  "logger.ex.deadlifts",
+  "logger.ex.pullUps",
+  "logger.ex.barbellRows",
+  "logger.ex.legPress",
+  "logger.ex.rdl",
+] as const;
 
 export function WorkoutLogger() {
+  const { t } = useI18n();
   const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [currentExercise, setCurrentExercise] = useState("");
+  const [currentExerciseKey, setCurrentExerciseKey] = useState("");
+
+  const tips = useMemo(
+    () => [t("workoutLog.tip.0"), t("workoutLog.tip.1"), t("workoutLog.tip.2")],
+    [t],
+  );
 
   const addExercise = () => {
-    if (!currentExercise) return;
+    if (!currentExerciseKey) return;
 
     const newExercise: Exercise = {
       id: Date.now().toString(),
-      name: currentExercise,
+      nameKey: currentExerciseKey,
       sets: [
         {
           id: `${Date.now()}-1`,
@@ -63,7 +70,7 @@ export function WorkoutLogger() {
     };
 
     setExercises([...exercises, newExercise]);
-    setCurrentExercise("");
+    setCurrentExerciseKey("");
   };
 
   const addSet = (exerciseId: string) => {
@@ -81,28 +88,21 @@ export function WorkoutLogger() {
                 },
               ],
             }
-          : ex
-      )
+          : ex,
+      ),
     );
   };
 
-  const updateSet = (
-    exerciseId: string,
-    setId: string,
-    field: "weight" | "reps",
-    value: string
-  ) => {
+  const updateSet = (exerciseId: string, setId: string, field: "weight" | "reps", value: string) => {
     setExercises(
       exercises.map((ex) =>
         ex.id === exerciseId
           ? {
               ...ex,
-              sets: ex.sets.map((set) =>
-                set.id === setId ? { ...set, [field]: value } : set
-              ),
+              sets: ex.sets.map((set) => (set.id === setId ? { ...set, [field]: value } : set)),
             }
-          : ex
-      )
+          : ex,
+      ),
     );
   };
 
@@ -114,8 +114,8 @@ export function WorkoutLogger() {
               ...ex,
               sets: ex.sets.filter((set) => set.id !== setId),
             }
-          : ex
-      )
+          : ex,
+      ),
     );
   };
 
@@ -124,9 +124,8 @@ export function WorkoutLogger() {
   };
 
   const saveWorkout = () => {
-    // In a real app, this would save to a database
-    toast.success("Workout logged successfully!", {
-      description: `${exercises.length} exercises saved`,
+    toast.success(t("workoutLog.toast.title"), {
+      description: t("workoutLog.toast.desc", { n: exercises.length }),
     });
   };
 
@@ -136,91 +135,83 @@ export function WorkoutLogger() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-4xl font-bold mb-2">Log Workout</h1>
-          <p className="text-muted-foreground">
-            Track your sets, reps, and weights for AI-powered adjustments
-          </p>
+          <h1 className="text-4xl font-bold mb-2">{t("workoutLog.title")}</h1>
+          <p className="text-muted-foreground">{t("workoutLog.subtitle")}</p>
         </div>
         {exercises.length > 0 && (
-          <Button onClick={saveWorkout} size="lg">
+          <Button onClick={saveWorkout} size="lg" type="button">
             <Check className="mr-2 size-5" />
-            Save Workout
+            {t("workoutLog.save")}
           </Button>
         )}
       </div>
 
-      {/* Stats */}
       {exercises.length > 0 && (
         <div className="grid md:grid-cols-3 gap-4">
           <Card className="border-2">
             <CardContent className="p-6">
               <div className="text-2xl font-bold text-primary">{exercises.length}</div>
-              <div className="text-sm text-muted-foreground">Exercises</div>
+              <div className="text-sm text-muted-foreground">{t("workoutLog.exercises")}</div>
             </CardContent>
           </Card>
           <Card className="border-2">
             <CardContent className="p-6">
               <div className="text-2xl font-bold text-primary">{getTotalSets()}</div>
-              <div className="text-sm text-muted-foreground">Total Sets</div>
+              <div className="text-sm text-muted-foreground">{t("workoutLog.totalSets")}</div>
             </CardContent>
           </Card>
           <Card className="border-2">
             <CardContent className="p-6">
               <div className="flex items-center gap-2">
                 <TrendingUp className="size-5 text-green-500" />
-                <span className="text-sm text-muted-foreground">On track for weekly volume goal</span>
+                <span className="text-sm text-muted-foreground">{t("workoutLog.volumeHint")}</span>
               </div>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Add Exercise */}
       <Card className="border-2 border-primary/50 bg-gradient-to-r from-primary/5 to-purple-600/5">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <PenSquare className="size-5 text-primary" />
-            Add Exercise
+            {t("workoutLog.addExerciseCard")}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row">
             <div className="flex-1">
-              <Select value={currentExercise} onValueChange={setCurrentExercise}>
+              <Select value={currentExerciseKey} onValueChange={setCurrentExerciseKey}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select an exercise" />
+                  <SelectValue placeholder={t("workoutLog.selectPlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
-                  {exerciseList.map((exercise) => (
-                    <SelectItem key={exercise} value={exercise}>
-                      {exercise}
+                  {exerciseKeys.map((key) => (
+                    <SelectItem key={key} value={key}>
+                      {t(key)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={addExercise} disabled={!currentExercise}>
+            <Button onClick={addExercise} disabled={!currentExerciseKey} type="button" className="shrink-0">
               <Plus className="mr-2 size-4" />
-              Add Exercise
+              {t("workoutLog.addExerciseBtn")}
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Exercises List */}
       {exercises.length === 0 ? (
         <Card className="border-2 border-dashed">
           <CardContent className="p-12 text-center">
             <div className="size-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
               <PenSquare className="size-8 text-muted-foreground" />
             </div>
-            <h3 className="text-xl font-semibold mb-2">No exercises logged yet</h3>
-            <p className="text-muted-foreground">
-              Start by adding an exercise from the dropdown above
-            </p>
+            <h3 className="text-xl font-semibold mb-2">{t("workoutLog.emptyTitle")}</h3>
+            <p className="text-muted-foreground">{t("workoutLog.emptyDesc")}</p>
           </CardContent>
         </Card>
       ) : (
@@ -233,11 +224,12 @@ export function WorkoutLogger() {
                     <Badge variant="outline" className="size-8 rounded-full font-bold">
                       {exerciseIndex + 1}
                     </Badge>
-                    {exercise.name}
+                    {t(exercise.nameKey)}
                   </CardTitle>
                   <Button
                     variant="ghost"
                     size="icon"
+                    type="button"
                     onClick={() => removeExercise(exercise.id)}
                     className="text-destructive hover:text-destructive"
                   >
@@ -246,7 +238,6 @@ export function WorkoutLogger() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Sets Table */}
                 <div className="space-y-3">
                   {exercise.sets.map((set, setIndex) => (
                     <div
@@ -255,38 +246,34 @@ export function WorkoutLogger() {
                     >
                       <div className="col-span-2 md:col-span-1">
                         <div className="text-sm font-semibold text-muted-foreground">
-                          Set {setIndex + 1}
+                          {t("workoutLog.set", { n: setIndex + 1 })}
                         </div>
                       </div>
                       <div className="col-span-4 md:col-span-5">
                         <div className="space-y-1">
                           <Label htmlFor={`weight-${set.id}`} className="text-xs">
-                            Weight (kg)
+                            {t("workoutLog.weightKg")}
                           </Label>
                           <Input
                             id={`weight-${set.id}`}
                             type="number"
                             placeholder="80"
                             value={set.weight}
-                            onChange={(e) =>
-                              updateSet(exercise.id, set.id, "weight", e.target.value)
-                            }
+                            onChange={(e) => updateSet(exercise.id, set.id, "weight", e.target.value)}
                           />
                         </div>
                       </div>
                       <div className="col-span-4 md:col-span-5">
                         <div className="space-y-1">
                           <Label htmlFor={`reps-${set.id}`} className="text-xs">
-                            Reps
+                            {t("workoutLog.reps")}
                           </Label>
                           <Input
                             id={`reps-${set.id}`}
                             type="number"
                             placeholder="10"
                             value={set.reps}
-                            onChange={(e) =>
-                              updateSet(exercise.id, set.id, "reps", e.target.value)
-                            }
+                            onChange={(e) => updateSet(exercise.id, set.id, "reps", e.target.value)}
                           />
                         </div>
                       </div>
@@ -294,6 +281,7 @@ export function WorkoutLogger() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          type="button"
                           onClick={() => removeSet(exercise.id, set.id)}
                           className="text-destructive hover:text-destructive"
                         >
@@ -304,14 +292,9 @@ export function WorkoutLogger() {
                   ))}
                 </div>
 
-                {/* Add Set Button */}
-                <Button
-                  variant="outline"
-                  onClick={() => addSet(exercise.id)}
-                  className="w-full"
-                >
+                <Button variant="outline" type="button" onClick={() => addSet(exercise.id)} className="w-full">
                   <Plus className="mr-2 size-4" />
-                  Add Set
+                  {t("workoutLog.addSet")}
                 </Button>
               </CardContent>
             </Card>
@@ -319,31 +302,18 @@ export function WorkoutLogger() {
         </div>
       )}
 
-      {/* Tips */}
       <Card className="border-2">
         <CardHeader>
-          <CardTitle>Quick Tips</CardTitle>
+          <CardTitle>{t("workoutLog.tipsTitle")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2 text-sm">
-            <p className="flex items-start gap-2">
-              <span className="text-primary">•</span>
-              <span className="text-muted-foreground">
-                Log your workouts consistently for accurate AI recommendations
-              </span>
-            </p>
-            <p className="flex items-start gap-2">
-              <span className="text-primary">•</span>
-              <span className="text-muted-foreground">
-                The AI analyzes your volume and intensity trends to optimize your plan
-              </span>
-            </p>
-            <p className="flex items-start gap-2">
-              <span className="text-primary">•</span>
-              <span className="text-muted-foreground">
-                Track your weight and reps to see progress over time
-              </span>
-            </p>
+            {tips.map((tip, i) => (
+              <p key={i} className="flex items-start gap-2">
+                <span className="text-primary">•</span>
+                <span className="text-muted-foreground">{tip}</span>
+              </p>
+            ))}
           </div>
         </CardContent>
       </Card>

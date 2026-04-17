@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { useI18n } from "@/contexts/i18n-context";
 import {
   Dumbbell,
   LayoutDashboard,
@@ -13,21 +16,24 @@ import {
   X,
   User,
 } from "lucide-react";
-import { useState } from "react";
 import { ThemeToggleButton } from "@/components/theme-toggle-button";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { t } = useI18n();
 
-  const navigation = [
-    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { name: "Profile", href: "/dashboard/profile", icon: User },
-    { name: "Workouts", href: "/dashboard/workouts", icon: Dumbbell },
-    { name: "Log Workout", href: "/dashboard/log-workout", icon: PenSquare },
-    { name: "AI Adjustment", href: "/dashboard/adjustment", icon: TrendingUp },
-    { name: "Nutrition", href: "/dashboard/nutrition", icon: Utensils },
-  ];
+  const navigation = useMemo(
+    () => [
+      { name: t("nav.dashboard"), href: "/dashboard", icon: LayoutDashboard },
+      { name: t("nav.profile"), href: "/dashboard/profile", icon: User },
+      { name: t("nav.workouts"), href: "/dashboard/workouts", icon: Dumbbell },
+      { name: t("nav.logWorkout"), href: "/dashboard/log-workout", icon: PenSquare },
+      { name: t("nav.adjustment"), href: "/dashboard/adjustment", icon: TrendingUp },
+      { name: t("nav.nutrition"), href: "/dashboard/nutrition", icon: Utensils },
+    ],
+    [t],
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -38,6 +44,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <span className="font-bold">AI Gym Coach</span>
         </div>
         <div className="flex items-center gap-2">
+          <LanguageSwitcher variant="compact" />
           <ThemeToggleButton />
           <Button
             variant="ghost"
@@ -67,19 +74,22 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
           `}
         >
-          <div className="p-6 border-b hidden lg:flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Dumbbell className="size-6 text-primary" />
-              <span className="font-bold">AI Gym Coach</span>
+          <div className="p-6 border-b hidden lg:flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <Dumbbell className="size-6 text-primary shrink-0" />
+              <span className="font-bold truncate">AI Gym Coach</span>
             </div>
-            <ThemeToggleButton iconClassName="size-4" />
+            <div className="flex items-center gap-1 shrink-0">
+              <LanguageSwitcher variant="compact" />
+              <ThemeToggleButton iconClassName="size-4" />
+            </div>
           </div>
 
           <nav className="p-4 space-y-2">
             {navigation.map((item) => {
               const isActive = pathname === item.href;
               return (
-                <Link key={item.name} href={item.href} onClick={() => setSidebarOpen(false)}>
+                <Link key={item.href} href={item.href} onClick={() => setSidebarOpen(false)}>
                   <Button
                     variant={isActive ? "secondary" : "ghost"}
                     className={`w-full justify-start ${
@@ -97,7 +107,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-card/80 backdrop-blur">
             <Link href="/">
               <Button variant="outline" className="w-full">
-                ← Back to Landing
+                {t("nav.backLanding")}
               </Button>
             </Link>
           </div>

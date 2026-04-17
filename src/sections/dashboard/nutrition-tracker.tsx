@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +10,8 @@ import { Progress } from "@/components/ui/progress";
 import { Utensils, Sparkles, Plus, Trash2, Apple } from "lucide-react";
 import { toast } from "sonner";
 import { ImageWithFallback } from "@/components/figma/ImageWithFallback";
+import { useI18n } from "@/contexts/i18n-context";
+import type { Locale } from "@/i18n/dictionaries";
 
 type Meal = {
   id: string;
@@ -21,7 +22,12 @@ type Meal = {
   fats: number;
 };
 
+function timeLocale(locale: Locale): string {
+  return locale === "id" ? "id-ID" : "en-US";
+}
+
 export function NutritionTracker() {
+  const { t, locale } = useI18n();
   const [mealInput, setMealInput] = useState("");
   const [meals, setMeals] = useState<Meal[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -40,7 +46,18 @@ export function NutritionTracker() {
       carbs: acc.carbs + meal.carbs,
       fats: acc.fats + meal.fats,
     }),
-    { calories: 0, protein: 0, carbs: 0, fats: 0 }
+    { calories: 0, protein: 0, carbs: 0, fats: 0 },
+  );
+
+  const quickFoodKeys = useMemo(() => [0, 1, 2, 3, 4, 5, 6, 7] as const, []);
+
+  const tips = useMemo(
+    () =>
+      [0, 1, 2].map((i) => ({
+        title: t(`nutrition.tip.${i}.title`),
+        desc: t(`nutrition.tip.${i}.desc`),
+      })),
+    [t],
   );
 
   const analyzeMeal = () => {
@@ -48,9 +65,7 @@ export function NutritionTracker() {
 
     setIsAnalyzing(true);
 
-    // Simulate AI processing
     setTimeout(() => {
-      // Mock AI calculation - in reality this would call an AI API
       const mockCalories = Math.floor(Math.random() * 400) + 300;
       const mockProtein = Math.floor(Math.random() * 35) + 25;
       const mockCarbs = Math.floor(Math.random() * 50) + 30;
@@ -68,8 +83,8 @@ export function NutritionTracker() {
       setMeals([...meals, newMeal]);
       setMealInput("");
       setIsAnalyzing(false);
-      toast.success("Meal analyzed and logged!", {
-        description: `${mockCalories} calories, ${mockProtein}g protein`,
+      toast.success(t("nutrition.toast.title"), {
+        description: t("nutrition.toast.desc", { cal: mockCalories, p: mockProtein }),
       });
     }, 1500);
   };
@@ -84,21 +99,17 @@ export function NutritionTracker() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div>
-        <h1 className="text-4xl font-bold mb-2">Nutrition Tracker</h1>
-        <p className="text-muted-foreground">
-          Track your meals with AI-powered nutrition analysis
-        </p>
+        <h1 className="text-4xl font-bold mb-2">{t("nutrition.title")}</h1>
+        <p className="text-muted-foreground">{t("nutrition.subtitle")}</p>
       </div>
 
-      {/* Daily Overview */}
       <div className="grid md:grid-cols-4 gap-4">
         <Card className="border-2">
           <CardContent className="p-6">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Calories</span>
+                <span className="text-sm text-muted-foreground">{t("nutrition.calories")}</span>
                 <Badge variant={totals.calories > dailyTargets.calories ? "destructive" : "secondary"}>
                   {totals.calories}/{dailyTargets.calories}
                 </Badge>
@@ -112,7 +123,7 @@ export function NutritionTracker() {
           <CardContent className="p-6">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Protein (g)</span>
+                <span className="text-sm text-muted-foreground">{t("nutrition.proteinG")}</span>
                 <Badge variant={totals.protein > dailyTargets.protein ? "destructive" : "secondary"}>
                   {totals.protein}/{dailyTargets.protein}
                 </Badge>
@@ -126,7 +137,7 @@ export function NutritionTracker() {
           <CardContent className="p-6">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Carbs (g)</span>
+                <span className="text-sm text-muted-foreground">{t("nutrition.carbsG")}</span>
                 <Badge variant={totals.carbs > dailyTargets.carbs ? "destructive" : "secondary"}>
                   {totals.carbs}/{dailyTargets.carbs}
                 </Badge>
@@ -140,7 +151,7 @@ export function NutritionTracker() {
           <CardContent className="p-6">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Fats (g)</span>
+                <span className="text-sm text-muted-foreground">{t("nutrition.fatsG")}</span>
                 <Badge variant={totals.fats > dailyTargets.fats ? "destructive" : "secondary"}>
                   {totals.fats}/{dailyTargets.fats}
                 </Badge>
@@ -151,56 +162,53 @@ export function NutritionTracker() {
         </Card>
       </div>
 
-      {/* AI Input */}
       <Card className="border-2 border-primary/50 bg-gradient-to-r from-primary/5 to-purple-600/5">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Sparkles className="size-5 text-primary" />
-            AI Nutrition Analyzer
+            {t("nutrition.analyzerTitle")}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="meal-input">What did you eat?</Label>
+            <Label htmlFor="meal-input">{t("nutrition.whatEat")}</Label>
             <Textarea
               id="meal-input"
-              placeholder="e.g., 200g chicken breast with rice and broccoli"
+              placeholder={t("nutrition.mealPlaceholder")}
               value={mealInput}
               onChange={(e) => setMealInput(e.target.value)}
               rows={3}
               disabled={isAnalyzing}
             />
-            <p className="text-xs text-muted-foreground">
-              Just describe your meal naturally. AI will calculate the macros for you.
-            </p>
+            <p className="text-xs text-muted-foreground">{t("nutrition.mealHint")}</p>
           </div>
           <Button
             onClick={analyzeMeal}
             disabled={!mealInput.trim() || isAnalyzing}
             size="lg"
             className="w-full"
+            type="button"
           >
             {isAnalyzing ? (
               <>
                 <Sparkles className="mr-2 size-4 animate-spin" />
-                Analyzing...
+                {t("nutrition.analyzing")}
               </>
             ) : (
               <>
                 <Plus className="mr-2 size-4" />
-                Analyze & Log Meal
+                {t("nutrition.analyzeLog")}
               </>
             )}
           </Button>
         </CardContent>
       </Card>
 
-      {/* Meals List */}
       <Card className="border-2">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Utensils className="size-5 text-primary" />
-            Today's Meals
+            {t("nutrition.todayMeals")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -209,10 +217,8 @@ export function NutritionTracker() {
               <div className="size-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
                 <Apple className="size-8 text-muted-foreground" />
               </div>
-              <h3 className="text-xl font-semibold mb-2">No meals logged yet</h3>
-              <p className="text-muted-foreground">
-                Start tracking your nutrition by adding your first meal above
-              </p>
+              <h3 className="text-xl font-semibold mb-2">{t("nutrition.emptyTitle")}</h3>
+              <p className="text-muted-foreground">{t("nutrition.emptyDesc")}</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -222,9 +228,9 @@ export function NutritionTracker() {
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <Badge variant="outline">Meal {index + 1}</Badge>
+                          <Badge variant="outline">{t("nutrition.mealN", { n: index + 1 })}</Badge>
                           <span className="text-sm text-muted-foreground">
-                            {new Date().toLocaleTimeString("en-US", {
+                            {new Date().toLocaleTimeString(timeLocale(locale), {
                               hour: "2-digit",
                               minute: "2-digit",
                             })}
@@ -233,19 +239,19 @@ export function NutritionTracker() {
                         <p className="mb-4">{meal.description}</p>
                         <div className="grid grid-cols-4 gap-4">
                           <div className="p-3 bg-background rounded-lg">
-                            <div className="text-xs text-muted-foreground mb-1">Calories</div>
+                            <div className="text-xs text-muted-foreground mb-1">{t("nutrition.calories")}</div>
                             <div className="font-bold text-primary">{meal.calories}</div>
                           </div>
                           <div className="p-3 bg-background rounded-lg">
-                            <div className="text-xs text-muted-foreground mb-1">Protein</div>
+                            <div className="text-xs text-muted-foreground mb-1">{t("dashboard.stat.protein")}</div>
                             <div className="font-bold text-blue-500">{meal.protein}g</div>
                           </div>
                           <div className="p-3 bg-background rounded-lg">
-                            <div className="text-xs text-muted-foreground mb-1">Carbs</div>
+                            <div className="text-xs text-muted-foreground mb-1">{t("nutrition.carbsG")}</div>
                             <div className="font-bold text-green-500">{meal.carbs}g</div>
                           </div>
                           <div className="p-3 bg-background rounded-lg">
-                            <div className="text-xs text-muted-foreground mb-1">Fats</div>
+                            <div className="text-xs text-muted-foreground mb-1">{t("nutrition.fatsG")}</div>
                             <div className="font-bold text-orange-500">{meal.fats}g</div>
                           </div>
                         </div>
@@ -253,6 +259,7 @@ export function NutritionTracker() {
                       <Button
                         variant="ghost"
                         size="icon"
+                        type="button"
                         onClick={() => removeMeal(meal.id)}
                         className="text-destructive hover:text-destructive"
                       >
@@ -267,68 +274,46 @@ export function NutritionTracker() {
         </CardContent>
       </Card>
 
-      {/* Nutrition Tips with Image */}
       <div className="grid lg:grid-cols-2 gap-6">
         <Card className="border-2">
           <CardHeader>
-            <CardTitle>Nutrition Tips</CardTitle>
+            <CardTitle>{t("nutrition.tipsTitle")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="p-4 bg-muted/50 rounded-lg">
-              <h4 className="font-semibold mb-2">Hit Your Protein Target</h4>
-              <p className="text-sm text-muted-foreground">
-                Aim for 165g protein daily to support muscle growth and recovery during your cut.
-              </p>
-            </div>
-            <div className="p-4 bg-muted/50 rounded-lg">
-              <h4 className="font-semibold mb-2">Timing Matters</h4>
-              <p className="text-sm text-muted-foreground">
-                Try to eat protein-rich meals within 2 hours after your workout for optimal recovery.
-              </p>
-            </div>
-            <div className="p-4 bg-muted/50 rounded-lg">
-              <h4 className="font-semibold mb-2">Stay Consistent</h4>
-              <p className="text-sm text-muted-foreground">
-                Log your meals daily for accurate AI recommendations and better results.
-              </p>
-            </div>
+            {tips.map((tip, i) => (
+              <div key={i} className="p-4 bg-muted/50 rounded-lg">
+                <h4 className="font-semibold mb-2">{tip.title}</h4>
+                <p className="text-sm text-muted-foreground">{tip.desc}</p>
+              </div>
+            ))}
           </CardContent>
         </Card>
 
         <Card className="border-2 overflow-hidden">
           <ImageWithFallback
             src="https://images.unsplash.com/photo-1606859191214-25806e8e2423?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxoZWFsdGh5JTIwbnV0cml0aW9uJTIwbWVhbCUyMHByZXB8ZW58MXx8fHwxNzc2NDA4Mzc3fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
-            alt="Healthy meal prep"
+            alt={t("nutrition.mealImgAlt")}
             className="w-full h-full object-cover"
           />
         </Card>
       </div>
 
-      {/* Quick Add Suggestions */}
       <Card className="border-2">
         <CardHeader>
-          <CardTitle>Quick Add Common Foods</CardTitle>
+          <CardTitle>{t("nutrition.quickAddTitle")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              "200g chicken breast",
-              "100g white rice",
-              "2 whole eggs",
-              "1 protein shake",
-              "150g salmon",
-              "100g oats",
-              "1 banana",
-              "200g Greek yogurt",
-            ].map((food) => (
+            {quickFoodKeys.map((i) => (
               <Button
-                key={food}
+                key={i}
                 variant="outline"
-                onClick={() => setMealInput(food)}
+                type="button"
+                onClick={() => setMealInput(t(`nutrition.quick.${i}`))}
                 className="justify-start"
               >
                 <Plus className="mr-2 size-4" />
-                {food}
+                {t(`nutrition.quick.${i}`)}
               </Button>
             ))}
           </div>
