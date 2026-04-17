@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+
+# Lockfiles (ignore regardless of package manager)
+pnpm-lock.yaml
+yarn.lock
+package-lock.json
+bun.lock
+bun.lockb
+
+# Build
+dist/
+dist-ssr/
+.next/
+out/
+*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment (keep .env.example committed if you use one)
+.env
+.env.*
+!.env.example
+
+# Editor / IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing / coverage
+coverage/
+.nyc_output/
+
+# TypeScript
+*.tsbuildinfo
+
+# Vite / tooling cache
+.vite/
+
+# Optional tooling
+.turbo/
+.vercel/
