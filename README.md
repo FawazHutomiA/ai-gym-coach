@@ -2,8 +2,6 @@
 
 **AI Gym Coach** adalah antarmuka web (front-end) untuk pengalaman pelatihan kebugaran yang diposisikan sebagai “coach gym berbasis AI”. Aplikasi ini menyajikan alur mulai dari halaman pemasaran, onboarding pengguna baru, hingga dashboard operasional: pembuatan rencana latihan, pencatatan sesi, penyesuaian mingguan, dan pelacakan nutrisi. Saat ini fokusnya adalah **desain UI/UX dan interaksi di browser**; integrasi backend atau model AI sungguhan dapat ditambahkan di tahap berikutnya.
 
-Desain visual mengacu pada file Figma: [AI Gym Coach UI Design](https://www.figma.com/design/i36VDyRWtFSYknQQZtp4GM/AI-Gym-Coach-UI-Design).
-
 ---
 
 ## Apa yang ada di dalam aplikasi?
@@ -75,5 +73,3 @@ bun run lint
 ## Kredit
 
 **AI Gym Coach UI Design** — pengembangan dan dokumentasi proyek ini oleh **Fawaz Hutomi Abdurahman**.
-
-Desain asli dan referensi visual: Figma **AI Gym Coach UI Design** (tautan di atas).
