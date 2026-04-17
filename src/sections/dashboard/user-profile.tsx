@@ -1,0 +1,280 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { User, Mail, Phone, Ruler, Weight, Bell, Save, Sparkles } from "lucide-react";
+import { toast } from "sonner";
+
+const STORAGE_KEY = "ai-gym-coach-profile";
+
+export type UserProfileData = {
+  displayName: string;
+  email: string;
+  phone: string;
+  goal: "cutting" | "bulking" | "maintenance";
+  bio: string;
+  weightKg: string;
+  heightCm: string;
+  emailNotifications: boolean;
+};
+
+const defaultProfile: UserProfileData = {
+  displayName: "Athlete",
+  email: "",
+  phone: "",
+  goal: "maintenance",
+  bio: "",
+  weightKg: "",
+  heightCm: "",
+  emailNotifications: true,
+};
+
+function loadProfile(): UserProfileData {
+  if (typeof window === "undefined") return defaultProfile;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return defaultProfile;
+    const parsed = JSON.parse(raw) as Partial<UserProfileData>;
+    return { ...defaultProfile, ...parsed };
+  } catch {
+    return defaultProfile;
+  }
+}
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+export function UserProfile() {
+  const [profile, setProfile] = useState<UserProfileData>(defaultProfile);
+
+  useEffect(() => {
+    setProfile(loadProfile());
+  }, []);
+
+  const update = <K extends keyof UserProfileData>(key: K, value: UserProfileData[K]) => {
+    setProfile((p) => ({ ...p, [key]: value }));
+  };
+
+  const handleSave = () => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+      toast.success("Profile saved", {
+        description: "Your settings are stored in this browser.",
+      });
+    } catch {
+      toast.error("Could not save profile");
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-4xl font-bold mb-2">Profile</h1>
+        <p className="text-muted-foreground">
+          Manage your account and preferences for AI Gym Coach.
+        </p>
+      </div>
+
+      <Card className="border-2 overflow-hidden">
+        <CardContent className="p-6 sm:p-8">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+            <Avatar className="size-24 border-2 border-primary/20 text-2xl">
+              <AvatarFallback className="bg-gradient-to-br from-primary to-purple-600 text-primary-foreground">
+                {initials(profile.displayName)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-2xl font-semibold">{profile.displayName}</h2>
+                <Badge variant="secondary" className="capitalize">
+                  {profile.goal}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Member · progress synced locally in this browser
+              </p>
+            </div>
+            <Button onClick={handleSave} className="shrink-0 gap-2 sm:self-start">
+              <Save className="size-4" />
+              Save changes
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card className="border-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <User className="size-5 text-primary" />
+              Personal info
+            </CardTitle>
+            <CardDescription>How we address you and reach you.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="displayName">Display name</Label>
+              <Input
+                id="displayName"
+                value={profile.displayName}
+                onChange={(e) => update("displayName", e.target.value)}
+                placeholder="Your name"
+                autoComplete="name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email" className="flex items-center gap-2">
+                <Mail className="size-3.5" />
+                Email
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                value={profile.email}
+                onChange={(e) => update("email", e.target.value)}
+                placeholder="you@example.com"
+                autoComplete="email"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone" className="flex items-center gap-2">
+                <Phone className="size-3.5" />
+                Phone <span className="text-muted-foreground font-normal">(optional)</span>
+              </Label>
+              <Input
+                id="phone"
+                type="tel"
+                value={profile.phone}
+                onChange={(e) => update("phone", e.target.value)}
+                placeholder="+62 …"
+                autoComplete="tel"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Fitness goal</Label>
+              <Select value={profile.goal} onValueChange={(v) => update("goal", v as UserProfileData["goal"])}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select goal" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cutting">Cutting — lose fat</SelectItem>
+                  <SelectItem value="bulking">Bulking — build muscle</SelectItem>
+                  <SelectItem value="maintenance">Maintenance — stay lean</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bio">Bio</Label>
+              <Textarea
+                id="bio"
+                value={profile.bio}
+                onChange={(e) => update("bio", e.target.value)}
+                placeholder="Short intro, injuries to note, favorite lifts…"
+                rows={4}
+                className="resize-y min-h-[100px]"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="space-y-6">
+          <Card className="border-2">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Sparkles className="size-5 text-primary" />
+                Body metrics
+              </CardTitle>
+              <CardDescription>Used to personalize calorie and volume suggestions.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="height" className="flex items-center gap-2">
+                    <Ruler className="size-3.5" />
+                    Height (cm)
+                  </Label>
+                  <Input
+                    id="height"
+                    inputMode="decimal"
+                    value={profile.heightCm}
+                    onChange={(e) => update("heightCm", e.target.value)}
+                    placeholder="175"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="weight" className="flex items-center gap-2">
+                    <Weight className="size-3.5" />
+                    Weight (kg)
+                  </Label>
+                  <Input
+                    id="weight"
+                    inputMode="decimal"
+                    value={profile.weightKg}
+                    onChange={(e) => update("weightKg", e.target.value)}
+                    placeholder="72"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Bell className="size-5 text-primary" />
+                Notifications
+              </CardTitle>
+              <CardDescription>Control reminders in this demo (stored locally).</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted/30 p-4">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium">Email updates</p>
+                  <p className="text-xs text-muted-foreground">
+                    Tips, streaks, and weekly summaries (when email is connected).
+                  </p>
+                </div>
+                <Switch
+                  checked={profile.emailNotifications}
+                  onCheckedChange={(v) => update("emailNotifications", v)}
+                  aria-label="Email notifications"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      <Separator />
+
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <p className="text-sm text-muted-foreground">
+          Data is saved only in your browser (localStorage). Connect a backend later for sync across devices.
+        </p>
+        <Button onClick={handleSave} size="lg" className="gap-2">
+          <Save className="size-4" />
+          Save profile
+        </Button>
+      </div>
+    </div>
+  );
+}

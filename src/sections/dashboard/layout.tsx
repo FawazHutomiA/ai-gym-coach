@@ -11,6 +11,7 @@ import {
   Utensils,
   Menu,
   X,
+  User,
 } from "lucide-react";
 import { useState } from "react";
 import { ThemeToggleButton } from "@/components/theme-toggle-button";
@@ -21,6 +22,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { name: "Profile", href: "/dashboard/profile", icon: User },
     { name: "Workouts", href: "/dashboard/workouts", icon: Dumbbell },
     { name: "Log Workout", href: "/dashboard/log-workout", icon: PenSquare },
     { name: "AI Adjustment", href: "/dashboard/adjustment", icon: TrendingUp },

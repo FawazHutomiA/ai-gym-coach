@@ -13,6 +13,7 @@ import {
   Calendar,
   Flame,
   Trophy,
+  User,
 } from "lucide-react";
 import {
   LineChart,
@@ -37,11 +38,19 @@ export function DashboardHome() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-4xl font-bold mb-2">Welcome back!</h1>
-        <p className="text-muted-foreground">
-          Here's your fitness progress and today's plan
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-4xl font-bold mb-2">Welcome back!</h1>
+          <p className="text-muted-foreground">
+            Here's your fitness progress and today's plan
+          </p>
+        </div>
+        <Link href="/dashboard/profile">
+          <Button variant="outline" className="gap-2 shrink-0">
+            <User className="size-4" />
+            Profile
+          </Button>
+        </Link>
       </div>
 
       {/* Quick Stats */}
