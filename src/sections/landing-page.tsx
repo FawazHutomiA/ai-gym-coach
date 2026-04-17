@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,18 +18,22 @@ import {
   Menu,
   Moon,
   Sun,
+  X,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { ImageWithFallback } from "@/components/figma/ImageWithFallback";
 
 export function LandingPage() {
   const { theme, setTheme } = useTheme();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  const closeMobileNav = () => setMobileNavOpen(false);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       {/* Navigation */}
-      <nav className="border-b backdrop-blur-lg bg-background/80 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+      <nav className="sticky top-0 z-50 border-b backdrop-blur-lg bg-background/80">
+        <div className="relative z-50 container mx-auto flex items-center justify-between px-4 py-4">
           <div className="flex items-center gap-2">
             <Dumbbell className="size-8 text-primary" />
             <span className="font-bold text-xl">AI Gym Coach</span>
@@ -45,8 +50,17 @@ export function LandingPage() {
                 <Moon className="size-5" />
               )}
             </Button>
-            <Button variant="ghost" size="icon" className="md:hidden">
-              <Menu className="size-5" />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              onClick={() => setMobileNavOpen((open) => !open)}
+              aria-expanded={mobileNavOpen}
+              aria-controls="mobile-nav-menu"
+              aria-label={mobileNavOpen ? "Close menu" : "Open menu"}
+            >
+              {mobileNavOpen ? <X className="size-5" /> : <Menu className="size-5" />}
             </Button>
             <div className="hidden md:flex items-center gap-6">
               <a href="#features" className="text-sm hover:text-primary transition-colors">
@@ -64,10 +78,50 @@ export function LandingPage() {
             </div>
           </div>
         </div>
+
+        {mobileNavOpen ? (
+          <>
+            <button
+              type="button"
+              className="fixed inset-0 z-40 bg-black/50 md:hidden"
+              aria-label="Close menu"
+              onClick={closeMobileNav}
+            />
+            <div
+              id="mobile-nav-menu"
+              className="absolute left-0 right-0 top-full z-50 flex flex-col gap-1 border-b bg-background/95 p-4 shadow-lg backdrop-blur-lg md:hidden"
+            >
+              <a
+                href="#features"
+                className="rounded-md px-3 py-2 text-sm hover:bg-muted hover:text-primary"
+                onClick={closeMobileNav}
+              >
+                Features
+              </a>
+              <a
+                href="#how-it-works"
+                className="rounded-md px-3 py-2 text-sm hover:bg-muted hover:text-primary"
+                onClick={closeMobileNav}
+              >
+                How it works
+              </a>
+              <Link
+                href="/dashboard"
+                className="rounded-md px-3 py-2 text-sm hover:bg-muted hover:text-primary"
+                onClick={closeMobileNav}
+              >
+                Dashboard
+              </Link>
+              <Link href="/onboarding" onClick={closeMobileNav} className="pt-1">
+                <Button className="w-full">Start Free</Button>
+              </Link>
+            </div>
+          </>
+        ) : null}
       </nav>
 
       {/* Hero Section */}
-      <section className="container mx-auto px-4 py-24 md:py-32">
+      <section className="container mx-auto px-4 pb-24 pt-12 md:py-32">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <div className="space-y-8">
             <div className="inline-block">
