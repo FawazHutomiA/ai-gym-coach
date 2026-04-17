@@ -6,22 +6,18 @@ import { Button } from "@/components/ui/button";
 import {
   Dumbbell,
   LayoutDashboard,
-  ListChecks,
   PenSquare,
   TrendingUp,
   Utensils,
   Menu,
   X,
-  Moon,
-  Sun,
 } from "lucide-react";
 import { useState } from "react";
-import { useTheme } from "next-themes";
+import { ThemeToggleButton } from "@/components/theme-toggle-button";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { theme, setTheme } = useTheme();
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -40,13 +36,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <span className="font-bold">AI Gym Coach</span>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          >
-            {theme === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}
-          </Button>
+          <ThemeToggleButton />
           <Button
             variant="ghost"
             size="icon"
@@ -80,13 +70,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               <Dumbbell className="size-6 text-primary" />
               <span className="font-bold">AI Gym Coach</span>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            >
-              {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-            </Button>
+            <ThemeToggleButton iconClassName="size-4" />
           </div>
 
           <nav className="p-4 space-y-2">

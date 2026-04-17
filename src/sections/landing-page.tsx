@@ -16,15 +16,12 @@ import {
   ArrowRight,
   Check,
   Menu,
-  Moon,
-  Sun,
   X,
 } from "lucide-react";
-import { useTheme } from "next-themes";
 import { ImageWithFallback } from "@/components/figma/ImageWithFallback";
+import { ThemeToggleButton } from "@/components/theme-toggle-button";
 
 export function LandingPage() {
-  const { theme, setTheme } = useTheme();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const closeMobileNav = () => setMobileNavOpen(false);
@@ -39,17 +36,7 @@ export function LandingPage() {
             <span className="font-bold text-xl">AI Gym Coach</span>
           </div>
           <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            >
-              {theme === "dark" ? (
-                <Sun className="size-5" />
-              ) : (
-                <Moon className="size-5" />
-              )}
-            </Button>
+            <ThemeToggleButton />
             <Button
               type="button"
               variant="ghost"
