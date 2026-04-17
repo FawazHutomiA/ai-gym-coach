@@ -147,11 +147,11 @@ export function OnboardingFlow() {
             <Dumbbell className="size-8 text-primary shrink-0" />
             <span className="font-bold text-xl truncate">AI Gym Coach</span>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <LanguageSwitcher variant="compact" />
+          <div className="flex items-center gap-3 shrink-0">
             <div className="text-sm text-muted-foreground whitespace-nowrap">
               {t("onboarding.step.label", { current: step, total: totalSteps })}
             </div>
+            <LanguageSwitcher variant="compact" className="shrink-0" />
           </div>
         </div>
 

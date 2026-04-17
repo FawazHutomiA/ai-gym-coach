@@ -74,15 +74,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
           `}
         >
-          <div className="p-6 border-b hidden lg:flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <Dumbbell className="size-6 text-primary shrink-0" />
-              <span className="font-bold truncate">AI Gym Coach</span>
-            </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <LanguageSwitcher variant="compact" />
-              <ThemeToggleButton iconClassName="size-4" />
-            </div>
+          <div className="p-6 border-b hidden lg:flex items-center gap-2 min-w-0">
+            <Dumbbell className="size-6 text-primary shrink-0" />
+            <span className="font-bold truncate">AI Gym Coach</span>
           </div>
 
           <nav className="p-4 space-y-2">
@@ -116,6 +110,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         {/* Main Content */}
         <main className="flex-1 overflow-auto">
           <div className="container mx-auto p-6 lg:p-8 max-w-7xl">
+            {/* Desktop: bahasa & tema di kanan (satu tempat; mobile ada di header atas) */}
+            <div className="hidden lg:flex justify-end items-center gap-2 mb-6">
+              <LanguageSwitcher variant="compact" className="shrink-0" />
+              <ThemeToggleButton iconClassName="size-4" />
+            </div>
             {children}
           </div>
         </main>

@@ -20,7 +20,6 @@ import { Badge } from "@/components/ui/badge";
 import { User, Mail, Phone, Ruler, Weight, Bell, Save, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/contexts/i18n-context";
-import { LanguageSwitcher } from "@/components/language-switcher";
 
 const STORAGE_KEY = "ai-gym-coach-profile";
 
@@ -92,12 +91,9 @@ export function UserProfile() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-4xl font-bold mb-2">{t("profile.title")}</h1>
-          <p className="text-muted-foreground">{t("profile.subtitle")}</p>
-        </div>
-        <LanguageSwitcher variant="compact" className="shrink-0" />
+      <div>
+        <h1 className="text-4xl font-bold mb-2">{t("profile.title")}</h1>
+        <p className="text-muted-foreground">{t("profile.subtitle")}</p>
       </div>
 
       <Card className="border-2 overflow-hidden">
