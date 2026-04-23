@@ -71,7 +71,7 @@ export function OnboardingFlow() {
   if (results) {
     const planLabel = t(results.workoutPlanKey);
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
+      <div className="min-h-screen w-full min-w-0 max-w-full overflow-x-clip bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -140,8 +140,8 @@ export function OnboardingFlow() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl space-y-8">
+    <div className="min-h-screen w-full min-w-0 max-w-full overflow-x-clip bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
+      <div className="w-full min-w-0 max-w-2xl space-y-8">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-3 min-w-0">
             <Dumbbell className="size-8 text-primary shrink-0" />

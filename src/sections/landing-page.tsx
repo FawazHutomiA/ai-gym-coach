@@ -133,9 +133,9 @@ export function LandingPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      <nav className="sticky top-0 z-50 border-b backdrop-blur-lg bg-background/80">
-        <div className="relative z-50 container mx-auto flex items-center justify-between px-4 py-4">
+    <div className="min-h-screen min-w-0 max-w-full overflow-x-clip bg-gradient-to-b from-background to-muted/20">
+      <nav className="sticky top-0 z-50 border-b backdrop-blur-lg bg-background/80 max-w-full min-w-0">
+        <div className="relative z-50 container mx-auto flex min-w-0 max-w-full items-center justify-between gap-2 px-4 py-4">
           <div className="flex items-center gap-2">
             <Dumbbell className="size-8 text-primary" />
             <span className="font-bold text-xl">AI Gym Coach</span>

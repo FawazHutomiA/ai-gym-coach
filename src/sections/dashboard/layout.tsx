@@ -56,8 +56,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   }, [router, navigation]);
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="lg:hidden border-b bg-card px-4 py-3 flex items-center justify-between sticky top-0 z-40">
+    <div className="min-h-screen bg-background min-w-0 max-w-full overflow-x-clip">
+      <div className="lg:hidden border-b bg-card px-4 py-3 flex items-center justify-between sticky top-0 z-40 max-w-full min-w-0">
         <div className="flex items-center gap-2">
           <Dumbbell className="size-6 text-primary" />
           <span className="font-bold">AI Gym Coach</span>
@@ -133,8 +133,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
         </aside>
 
-        <main className="flex-1 overflow-auto min-h-0">
-          <div className="container mx-auto p-6 lg:p-8 max-w-7xl">
+        <main className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden">
+          <div className="container mx-auto w-full min-w-0 max-w-7xl px-4 py-6 sm:px-6 lg:p-8">
             <div className="hidden lg:flex justify-end items-center gap-2 mb-6">
               <LanguageSwitcher variant="compact" className="shrink-0" />
               <ThemeToggleButton iconClassName="size-4" />

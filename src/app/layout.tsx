@@ -16,8 +16,8 @@ export default async function RootLayout({
 }>) {
   const session = await auth();
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="min-h-screen antialiased">
+    <html lang="en" className="overflow-x-clip" suppressHydrationWarning>
+      <body className="min-h-screen antialiased overflow-x-clip min-w-0 max-w-full">
         <Providers session={session}>{children}</Providers>
       </body>
     </html>

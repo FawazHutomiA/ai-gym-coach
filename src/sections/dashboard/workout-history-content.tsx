@@ -57,6 +57,7 @@ export function WorkoutHistoryContent({ days, sessions }: WorkoutHistoryContentP
   const router = useRouter();
   const pathname = usePathname();
   const dateLocale = locale === "id" ? localeId : enUS;
+  const dash = t("workoutLog.detailSetEmpty");
 
   const exerciseOptions = useMemo(() => {
     const map = new Map<string, { id: string; labelEn: string; labelId: string; total: number }>();
@@ -386,28 +387,45 @@ export function WorkoutHistoryContent({ days, sessions }: WorkoutHistoryContentP
                           key={item.session.id}
                           className="rounded-lg border border-border/80 bg-muted/25 dark:bg-muted/10 p-3 sm:px-4"
                         >
-                          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                              <div className="font-medium">
-                                {item.session.title?.trim() ||
-                                  format(
-                                    parseISO(item.session.loggedAt),
-                                    "p",
-                                    { locale: dateLocale },
-                                  )}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                {t("workoutHistory.sessionVolume", { kg: v })}{" "}
-                                · {t("workoutLog.exerciseCount", { n: item.exercises.length })}
-                              </div>
+                          <div className="space-y-1">
+                            <div className="font-medium">
+                              {item.session.title?.trim() ||
+                                format(parseISO(item.session.loggedAt), "p", { locale: dateLocale })}
                             </div>
-                            <div className="flex gap-2 flex-wrap">
-                              <Button variant="secondary" size="sm" asChild>
-                                <Link href={`/dashboard/log-workout/${item.session.id}/detail`}>
-                                  {t("workoutLog.viewDetail")}
-                                </Link>
-                              </Button>
+                            <div className="text-xs text-muted-foreground">
+                              {t("workoutHistory.sessionVolume", { kg: v })}{" "}
+                              · {t("workoutLog.exerciseCount", { n: item.exercises.length })}
                             </div>
+                          </div>
+                          <div className="mt-4 space-y-3 border-t border-border/60 pt-4">
+                            {item.exercises.map((ex, i) => (
+                              <div
+                                key={`${ex.catalogExerciseId}-${i}`}
+                                className="rounded-lg border border-border/70 bg-card/50 dark:bg-card/30 px-3 py-2"
+                              >
+                                <p className="text-sm font-medium text-foreground">
+                                  {locale === "id" ? ex.labelId : ex.labelEn}
+                                </p>
+                                <ul className="mt-2 space-y-1.5 text-sm">
+                                  {ex.sets.map((set, j) => (
+                                    <li
+                                      key={`${ex.catalogExerciseId}-set-${j}`}
+                                      className="flex justify-between gap-3 rounded-md bg-muted/50 dark:bg-muted/20 px-2 py-1.5"
+                                    >
+                                      <span className="text-muted-foreground tabular-nums">
+                                        {t("workoutLog.set", { n: j + 1 })}
+                                      </span>
+                                      <span className="font-medium tabular-nums text-foreground">
+                                        {t("workoutLog.detailSetLine", {
+                                          weight: set.weight?.trim() ? set.weight.trim() : dash,
+                                          reps: set.reps?.trim() ? set.reps.trim() : dash,
+                                        })}
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ))}
                           </div>
                         </li>
                       );

@@ -13,7 +13,7 @@ export default async function SignInPage() {
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-b from-background to-muted/20">
+    <div className="relative min-h-screen w-full min-w-0 max-w-full overflow-x-clip flex flex-col items-center justify-center p-4 bg-gradient-to-b from-background to-muted/20">
       <AuthBackLink />
       <SignInForm />
     </div>

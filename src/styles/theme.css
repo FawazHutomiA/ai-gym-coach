@@ -124,8 +124,19 @@
     @apply border-border outline-ring/50;
   }
 
+  /**
+   * Cegah scroll horizontal halaman di mobile (konten lebar, chart, flex min-width).
+   * Konten yang sengaja di-scroll (tabel) tetap memakai overflow-x-auto pada pembungkusnya.
+   */
+  html {
+    overflow-x: clip;
+    max-width: 100%;
+  }
+
   body {
     @apply bg-background text-foreground;
+    overflow-x: clip;
+    max-width: 100%;
   }
 
   /**

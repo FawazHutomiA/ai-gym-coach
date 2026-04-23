@@ -20,8 +20,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   ];
 
   return (
-    <div className="min-h-screen flex bg-background text-foreground">
-      <aside className="w-64 border-r border-border bg-card/60 dark:bg-card/40 backdrop-blur-sm p-4 flex flex-col gap-1 shrink-0">
+    <div className="min-h-screen flex min-w-0 max-w-full flex-col overflow-x-clip md:flex-row bg-background text-foreground">
+      <aside className="w-full shrink-0 border-b border-border bg-card/60 dark:bg-card/40 p-4 backdrop-blur-sm md:w-64 md:border-b-0 md:border-r flex flex-col gap-1">
         <div className="flex items-center gap-2 mb-6 px-2">
           <Shield className="size-6 text-primary shrink-0" />
           <span className="font-bold truncate">{t("admin.shell.title")}</span>
@@ -60,7 +60,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           </Button>
         </div>
       </aside>
-      <main className="flex-1 overflow-auto bg-background">{children}</main>
+      <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-background">{children}</main>
     </div>
   );
 }

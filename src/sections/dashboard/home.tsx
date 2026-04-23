@@ -263,7 +263,8 @@ export function DashboardHome({ data }: Props) {
           {!weightData.length ? (
             <p className="text-sm text-muted-foreground py-8 text-center">{t("dashboard.weightChartEmpty")}</p>
           ) : (
-            <ResponsiveContainer width="100%" height={300}>
+            <div className="w-full min-w-0 max-w-full">
+              <ResponsiveContainer width="100%" height={300}>
               <LineChart data={weightData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis dataKey="date" className="text-xs" />
@@ -284,6 +285,7 @@ export function DashboardHome({ data }: Props) {
                 />
               </LineChart>
             </ResponsiveContainer>
+            </div>
           )}
         </CardContent>
       </Card>
