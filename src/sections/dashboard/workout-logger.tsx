@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { PenSquare, Plus, Trash2, Check, TrendingUp } from "lucide-react";
+import { ArrowLeft, Check, PenSquare, Plus, Trash2, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/contexts/i18n-context";
 
@@ -23,43 +25,135 @@ type Set = {
   reps: string;
 };
 
+type CatalogExercise = {
+  id: string;
+  slug: string;
+  labelEn: string;
+  labelId: string;
+  sortOrder: number;
+};
+
 type Exercise = {
   id: string;
-  nameKey: string;
+  catalogExerciseId: string;
+  labelEn: string;
+  labelId: string;
   sets: Set[];
 };
 
-const exerciseKeys = [
-  "logger.ex.benchPress",
-  "logger.ex.inclineDb",
-  "logger.ex.shoulderPress",
-  "logger.ex.lateralRaises",
-  "logger.ex.tricepDips",
-  "logger.ex.cableTricep",
-  "logger.ex.squats",
-  "logger.ex.deadlifts",
-  "logger.ex.pullUps",
-  "logger.ex.barbellRows",
-  "logger.ex.legPress",
-  "logger.ex.rdl",
-] as const;
+function toDatetimeLocalValue(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
-export function WorkoutLogger() {
-  const { t } = useI18n();
+export type WorkoutLoggerProps = {
+  sessionId?: string;
+  onSaved?: () => void;
+};
+
+export function WorkoutLogger({ sessionId, onSaved }: WorkoutLoggerProps) {
+  const { t, locale } = useI18n();
+  const router = useRouter();
+  const [catalog, setCatalog] = useState<CatalogExercise[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
   const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [currentExerciseKey, setCurrentExerciseKey] = useState("");
+  const [currentExerciseId, setCurrentExerciseId] = useState("");
+  const [sessionTitle, setSessionTitle] = useState("");
+  const [sessionLoggedAt, setSessionLoggedAt] = useState(() => toDatetimeLocalValue(new Date()));
+  const [loadingSession, setLoadingSession] = useState(!!sessionId);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/exercises");
+        if (!res.ok) throw new Error();
+        const data = (await res.json()) as { exercises: CatalogExercise[] };
+        if (!cancelled) setCatalog(data.exercises);
+      } catch {
+        if (!cancelled) toast.error(t("workoutLog.catalogError"));
+      } finally {
+        if (!cancelled) setCatalogLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [t]);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    let cancelled = false;
+    (async () => {
+      setLoadingSession(true);
+      try {
+        const res = await fetch(`/api/workouts/${sessionId}`);
+        const data = (await res.json()) as {
+          error?: string;
+          session?: { title: string | null; loggedAt: string };
+          exercises?: {
+            catalogExerciseId: string;
+            labelEn: string;
+            labelId: string;
+            sets: { weight: string; reps: string }[];
+          }[];
+        };
+        if (res.status === 404) {
+          toast.error(t("workoutLog.notFound"));
+          router.replace("/dashboard/log-workout");
+          return;
+        }
+        if (!res.ok) {
+          toast.error(data.error ?? t("workoutLog.loadError"));
+          return;
+        }
+        if (!data.session || !data.exercises) return;
+        if (cancelled) return;
+        setSessionTitle(data.session.title ?? "");
+        setSessionLoggedAt(toDatetimeLocalValue(new Date(data.session.loggedAt)));
+        setExercises(
+          data.exercises.map((ex, i) => ({
+            id: `loaded-${i}-${ex.catalogExerciseId}`,
+            catalogExerciseId: ex.catalogExerciseId,
+            labelEn: ex.labelEn,
+            labelId: ex.labelId,
+            sets: ex.sets.map((s, j) => ({
+              id: `loaded-set-${i}-${j}`,
+              weight: s.weight,
+              reps: s.reps,
+            })),
+          })),
+        );
+      } catch {
+        if (!cancelled) toast.error(t("workoutLog.loadError"));
+      } finally {
+        if (!cancelled) setLoadingSession(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, t, router]);
 
   const tips = useMemo(
     () => [t("workoutLog.tip.0"), t("workoutLog.tip.1"), t("workoutLog.tip.2")],
     [t],
   );
 
+  const labelFor = (ex: Pick<Exercise, "labelEn" | "labelId">) =>
+    locale === "id" ? ex.labelId : ex.labelEn;
+
   const addExercise = () => {
-    if (!currentExerciseKey) return;
+    if (!currentExerciseId) return;
+    const meta = catalog.find((c) => c.id === currentExerciseId);
+    if (!meta) return;
 
     const newExercise: Exercise = {
-      id: Date.now().toString(),
-      nameKey: currentExerciseKey,
+      id: `${Date.now()}`,
+      catalogExerciseId: meta.id,
+      labelEn: meta.labelEn,
+      labelId: meta.labelId,
       sets: [
         {
           id: `${Date.now()}-1`,
@@ -70,7 +164,7 @@ export function WorkoutLogger() {
     };
 
     setExercises([...exercises, newExercise]);
-    setCurrentExerciseKey("");
+    setCurrentExerciseId("");
   };
 
   const addSet = (exerciseId: string) => {
@@ -108,14 +202,14 @@ export function WorkoutLogger() {
 
   const removeSet = (exerciseId: string, setId: string) => {
     setExercises(
-      exercises.map((ex) =>
-        ex.id === exerciseId
-          ? {
-              ...ex,
-              sets: ex.sets.filter((set) => set.id !== setId),
-            }
-          : ex,
-      ),
+      exercises.map((ex) => {
+        if (ex.id !== exerciseId) return ex;
+        if (ex.sets.length <= 1) return ex;
+        return {
+          ...ex,
+          sets: ex.sets.filter((set) => set.id !== setId),
+        };
+      }),
     );
   };
 
@@ -123,46 +217,126 @@ export function WorkoutLogger() {
     setExercises(exercises.filter((ex) => ex.id !== exerciseId));
   };
 
-  const saveWorkout = () => {
-    toast.success(t("workoutLog.toast.title"), {
-      description: t("workoutLog.toast.desc", { n: exercises.length }),
-    });
+  const payloadBody = () => ({
+    title: sessionTitle,
+    loggedAt: sessionLoggedAt ? new Date(sessionLoggedAt).toISOString() : undefined,
+    exercises: exercises.map((ex) => ({
+      catalogExerciseId: ex.catalogExerciseId,
+      sets: ex.sets.map((s) => ({ weight: s.weight, reps: s.reps })),
+    })),
+  });
+
+  const saveWorkout = async () => {
+    if (exercises.length === 0) return;
+    setSaving(true);
+    try {
+      const body = payloadBody();
+      const url = sessionId ? `/api/workouts/${sessionId}` : "/api/workouts";
+      const method = sessionId ? "PATCH" : "POST";
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        toast.error(data.error ?? t("workoutLog.toast.error"));
+        return;
+      }
+      if (sessionId) {
+        toast.success(t("workoutLog.toast.updated"));
+        router.push("/dashboard/log-workout");
+        onSaved?.();
+      } else {
+        toast.success(t("workoutLog.toast.title"), {
+          description: t("workoutLog.toast.desc", { n: exercises.length }),
+        });
+        setExercises([]);
+        setSessionTitle("");
+        setSessionLoggedAt(toDatetimeLocalValue(new Date()));
+        onSaved?.();
+      }
+    } catch {
+      toast.error(t("workoutLog.toast.error"));
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const getTotalSets = () => {
-    return exercises.reduce((acc, ex) => acc + ex.sets.length, 0);
-  };
+  const getTotalSets = () => exercises.reduce((acc, ex) => acc + ex.sets.length, 0);
+
+  if (sessionId && loadingSession) {
+    return (
+      <div className="space-y-8">
+        <p className="text-sm text-muted-foreground">…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-4xl font-bold mb-2">{t("workoutLog.title")}</h1>
+          {sessionId ? (
+            <Button variant="ghost" size="sm" className="mb-2 -ml-2" asChild>
+              <Link href="/dashboard/log-workout">
+                <ArrowLeft className="mr-2 size-4" />
+                {t("workoutLog.backToLog")}
+              </Link>
+            </Button>
+          ) : null}
+          <h1 className="text-4xl font-bold mb-2">
+            {sessionId ? t("workoutLog.editTitle") : t("workoutLog.title")}
+          </h1>
           <p className="text-muted-foreground">{t("workoutLog.subtitle")}</p>
         </div>
         {exercises.length > 0 && (
-          <Button onClick={saveWorkout} size="lg" type="button">
+          <Button onClick={saveWorkout} disabled={saving} size="lg" type="button">
             <Check className="mr-2 size-5" />
-            {t("workoutLog.save")}
+            {saving ? "…" : sessionId ? t("workoutLog.update") : t("workoutLog.save")}
           </Button>
         )}
       </div>
 
+      <Card className="border-2 border-border dark:border-border bg-card/50 dark:bg-card/30">
+        <CardContent className="p-4 sm:p-6 grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="session-title">{t("workoutLog.sessionTitle")}</Label>
+            <Input
+              id="session-title"
+              value={sessionTitle}
+              onChange={(e) => setSessionTitle(e.target.value)}
+              placeholder=""
+              maxLength={120}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="session-datetime">{t("workoutLog.sessionDate")}</Label>
+            <Input
+              id="session-datetime"
+              type="datetime-local"
+              value={sessionLoggedAt}
+              onChange={(e) => setSessionLoggedAt(e.target.value)}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       {exercises.length > 0 && (
         <div className="grid md:grid-cols-3 gap-4">
-          <Card className="border-2">
+          <Card className="border-2 dark:border-border">
             <CardContent className="p-6">
               <div className="text-2xl font-bold text-primary">{exercises.length}</div>
               <div className="text-sm text-muted-foreground">{t("workoutLog.exercises")}</div>
             </CardContent>
           </Card>
-          <Card className="border-2">
+          <Card className="border-2 dark:border-border">
             <CardContent className="p-6">
               <div className="text-2xl font-bold text-primary">{getTotalSets()}</div>
               <div className="text-sm text-muted-foreground">{t("workoutLog.totalSets")}</div>
             </CardContent>
           </Card>
-          <Card className="border-2">
+          <Card className="border-2 dark:border-border">
             <CardContent className="p-6">
               <div className="flex items-center gap-2">
                 <TrendingUp className="size-5 text-green-500" />
@@ -173,7 +347,7 @@ export function WorkoutLogger() {
         </div>
       )}
 
-      <Card className="border-2 border-primary/50 bg-gradient-to-r from-primary/5 to-purple-600/5">
+      <Card className="border-2 border-primary/50 bg-gradient-to-r from-primary/5 to-purple-600/5 dark:from-primary/10 dark:to-purple-600/10">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <PenSquare className="size-5 text-primary" />
@@ -183,20 +357,37 @@ export function WorkoutLogger() {
         <CardContent>
           <div className="flex flex-col gap-4 sm:flex-row">
             <div className="flex-1">
-              <Select value={currentExerciseKey} onValueChange={setCurrentExerciseKey}>
+              <Select
+                value={currentExerciseId}
+                onValueChange={setCurrentExerciseId}
+                disabled={catalogLoading || catalog.length === 0}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder={t("workoutLog.selectPlaceholder")} />
+                  <SelectValue
+                    placeholder={
+                      catalogLoading
+                        ? "…"
+                        : catalog.length === 0
+                          ? t("workoutLog.catalogEmpty")
+                          : t("workoutLog.selectPlaceholder")
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  {exerciseKeys.map((key) => (
-                    <SelectItem key={key} value={key}>
-                      {t(key)}
+                  {catalog.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {locale === "id" ? c.labelId : c.labelEn}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={addExercise} disabled={!currentExerciseKey} type="button" className="shrink-0">
+            <Button
+              onClick={addExercise}
+              disabled={!currentExerciseId || catalogLoading}
+              type="button"
+              className="shrink-0"
+            >
               <Plus className="mr-2 size-4" />
               {t("workoutLog.addExerciseBtn")}
             </Button>
@@ -205,7 +396,7 @@ export function WorkoutLogger() {
       </Card>
 
       {exercises.length === 0 ? (
-        <Card className="border-2 border-dashed">
+        <Card className="border-2 border-dashed dark:border-border">
           <CardContent className="p-12 text-center">
             <div className="size-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
               <PenSquare className="size-8 text-muted-foreground" />
@@ -217,14 +408,14 @@ export function WorkoutLogger() {
       ) : (
         <div className="space-y-4">
           {exercises.map((exercise, exerciseIndex) => (
-            <Card key={exercise.id} className="border-2">
+            <Card key={exercise.id} className="border-2 dark:border-border">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-xl flex items-center gap-3">
                     <Badge variant="outline" className="size-8 rounded-full font-bold">
                       {exerciseIndex + 1}
                     </Badge>
-                    {t(exercise.nameKey)}
+                    {labelFor(exercise)}
                   </CardTitle>
                   <Button
                     variant="ghost"
@@ -242,7 +433,7 @@ export function WorkoutLogger() {
                   {exercise.sets.map((set, setIndex) => (
                     <div
                       key={set.id}
-                      className="grid grid-cols-12 gap-4 items-center p-4 bg-muted/50 rounded-lg"
+                      className="grid grid-cols-12 gap-4 items-center p-4 bg-muted/50 dark:bg-muted/20 rounded-lg"
                     >
                       <div className="col-span-2 md:col-span-1">
                         <div className="text-sm font-semibold text-muted-foreground">
@@ -282,6 +473,7 @@ export function WorkoutLogger() {
                           variant="ghost"
                           size="icon"
                           type="button"
+                          disabled={exercise.sets.length <= 1}
                           onClick={() => removeSet(exercise.id, set.id)}
                           className="text-destructive hover:text-destructive"
                         >
@@ -302,7 +494,7 @@ export function WorkoutLogger() {
         </div>
       )}
 
-      <Card className="border-2">
+      <Card className="border-2 dark:border-border">
         <CardHeader>
           <CardTitle>{t("workoutLog.tipsTitle")}</CardTitle>
         </CardHeader>

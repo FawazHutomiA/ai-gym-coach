@@ -17,6 +17,7 @@ import {
   User,
 } from "lucide-react";
 import { ThemeToggleButton } from "@/components/theme-toggle-button";
+import { SignOutButton } from "@/components/auth/sign-out-button";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -98,12 +99,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             })}
           </nav>
 
-          <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-card/80 backdrop-blur">
+          <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-card/80 backdrop-blur space-y-2">
             <Link href="/">
               <Button variant="outline" className="w-full">
                 {t("nav.backLanding")}
               </Button>
             </Link>
+            <SignOutButton variant="outline" className="w-full text-muted-foreground" />
           </div>
         </aside>
 

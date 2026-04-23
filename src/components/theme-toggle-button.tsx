@@ -24,6 +24,12 @@ export function ThemeToggleButton({ className, iconClassName }: ThemeToggleButto
 
   const size = iconClassName ?? "size-5";
 
+  const ariaLabel = !mounted
+    ? t("theme.toggleAria")
+    : theme === "dark"
+      ? t("theme.switchToLight")
+      : t("theme.switchToDark");
+
   return (
     <Button
       type="button"
@@ -31,7 +37,8 @@ export function ThemeToggleButton({ className, iconClassName }: ThemeToggleButto
       size="icon"
       className={className}
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      aria-label={t("theme.toggleAria")}
+      aria-label={ariaLabel}
+      title={ariaLabel}
     >
       {!mounted ? (
         <span className={cn("inline-block shrink-0", size)} aria-hidden />

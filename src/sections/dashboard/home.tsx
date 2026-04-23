@@ -1,11 +1,14 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { formatDistanceToNow } from "date-fns";
+import { enUS, id as idLocale } from "date-fns/locale";
 import { useI18n } from "@/contexts/i18n-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dumbbell,
   Target,
@@ -15,6 +18,7 @@ import {
   Calendar,
   Flame,
   Trophy,
+  Loader2,
 } from "lucide-react";
 import {
   LineChart,
@@ -26,48 +30,139 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-const WEIGHT_CHART_POINTS = [75, 74.5, 74, 73.5, 73, 72.5] as const;
-
-const TODAY_EXERCISES = [
-  { nameKey: "logger.ex.benchPress", sets: "4 x 8-10", weight: "80kg" },
-  { nameKey: "logger.ex.inclineDb", sets: "3 x 10-12", weight: "32kg" },
-  { nameKey: "logger.ex.shoulderPress", sets: "4 x 8-10", weight: "60kg" },
-  { nameKey: "logger.ex.lateralRaises", sets: "3 x 12-15", weight: "12kg" },
-  { nameKey: "logger.ex.tricepDips", sets: "3 x 10-12", weight: "bodyweight" as const },
-  { nameKey: "logger.ex.cableTricep", sets: "3 x 12-15", weight: "25kg" },
-] as const;
+type DashboardPayload = {
+  userName: string;
+  weightSeries: { at: string; weightKg: number }[];
+  workoutsThisMonth: number;
+  weightChangeKg: number | null;
+  lastSession: null | {
+    id: string;
+    loggedAt: string;
+    exercises: {
+      labelEn: string;
+      labelId: string;
+      legacyNameKey: string | null;
+      setsSummary: string;
+      topWeightLabel: string | null;
+    }[];
+  };
+  recentWorkouts: { id: string; at: string; label: string }[];
+};
 
 export function DashboardHome() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const [data, setData] = useState<DashboardPayload | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
-  const weightData = useMemo(
-    () =>
-      WEIGHT_CHART_POINTS.map((weight, i) => ({
-        date: t("dashboard.week.short", { n: i + 1 }),
-        weight,
-      })),
-    [t],
+  const dateLocale = locale === "id" ? idLocale : enUS;
+  const dateOpts = useMemo(
+    () => ({ month: "short" as const, day: "numeric" as const }),
+    [],
   );
 
-  const activities = useMemo(
-    () => [
-      { type: "workout" as const, text: t("dashboard.activity.0.text"), time: t("dashboard.activity.0.time") },
-      { type: "nutrition" as const, text: t("dashboard.activity.1.text"), time: t("dashboard.activity.1.time") },
-      { type: "ai" as const, text: t("dashboard.activity.2.text"), time: t("dashboard.activity.2.time") },
-      { type: "workout" as const, text: t("dashboard.activity.3.text"), time: t("dashboard.activity.3.time") },
-    ],
-    [t],
-  );
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/dashboard");
+        if (!res.ok) throw new Error("dashboard");
+        const json = (await res.json()) as DashboardPayload;
+        if (!cancelled) setData(json);
+      } catch {
+        if (!cancelled) setLoadError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const weightData = useMemo(() => {
+    if (!data?.weightSeries.length) return [];
+    const slice = data.weightSeries.slice(-12);
+    return slice.map((p) => ({
+      date: new Date(p.at).toLocaleDateString(locale === "id" ? "id-ID" : "en-US", dateOpts),
+      weight: p.weightKg,
+    }));
+  }, [data?.weightSeries, locale, dateOpts]);
+
+  const yDomain = useMemo(() => {
+    if (!data?.weightSeries.length) return [0, 100];
+    const w = data.weightSeries.map((p) => p.weightKg);
+    const lo = Math.min(...w);
+    const hi = Math.max(...w);
+    const pad = Math.max(1, (hi - lo) * 0.15 || 2);
+    return [Math.floor((lo - pad) * 10) / 10, Math.ceil((hi + pad) * 10) / 10];
+  }, [data?.weightSeries]);
+
+  const activities = useMemo(() => {
+    if (!data?.recentWorkouts.length) return [];
+    return data.recentWorkouts.map((r) => ({
+      id: r.id,
+      text: r.label,
+      time: formatDistanceToNow(new Date(r.at), { addSuffix: true, locale: dateLocale }),
+    }));
+  }, [data?.recentWorkouts, dateLocale]);
+
+  if (loading) {
+    return (
+      <div className="space-y-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-3 flex-1">
+            <Skeleton className="h-11 w-full max-w-md rounded-xl" />
+            <Skeleton className="h-5 w-52 max-w-full rounded-md" />
+          </div>
+          <div className="flex items-center gap-3 self-start rounded-2xl border border-border/80 dark:border-border bg-card/90 dark:bg-card/70 bg-gradient-to-r from-card to-primary/[0.06] dark:to-primary/10 px-4 py-3 shadow-sm dark:shadow-lg dark:shadow-black/25">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 dark:bg-primary/20">
+              <Loader2 className="size-5 text-primary animate-spin shrink-0" aria-hidden />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">{t("dashboard.loadingTitle")}</p>
+              <p className="text-xs text-muted-foreground">{t("dashboard.loadingSubtitle")}</p>
+            </div>
+          </div>
+        </div>
+        <div className="grid md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton
+              key={i}
+              className="h-28 w-full rounded-xl border border-border/50 dark:border-border/80 bg-muted/50 dark:bg-muted/40"
+            />
+          ))}
+        </div>
+        <div className="grid lg:grid-cols-3 gap-6">
+          <Skeleton className="lg:col-span-2 h-72 w-full rounded-2xl border border-dashed border-border/70 dark:border-primary/20 bg-muted/20 dark:bg-muted/10" />
+          <Skeleton className="h-72 w-full rounded-2xl border border-dashed border-border/70 dark:border-primary/20 bg-muted/20 dark:bg-muted/10" />
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError || !data) {
+    return (
+      <p className="text-muted-foreground">{t("dashboard.loadError")}</p>
+    );
+  }
+
+  const welcomeTitle = data.userName?.trim()
+    ? t("dashboard.welcomeNamed", { name: data.userName.trim() })
+    : t("dashboard.welcome");
+
+  const weightDeltaLabel =
+    data.weightChangeKg != null
+      ? `${data.weightChangeKg > 0 ? "+" : ""}${data.weightChangeKg} kg`
+      : t("dashboard.statPlaceholder");
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div>
-        <h1 className="text-4xl font-bold mb-2">{t("dashboard.welcome")}</h1>
+        <h1 className="text-4xl font-bold mb-2">{welcomeTitle}</h1>
         <p className="text-muted-foreground">{t("dashboard.subtitle")}</p>
       </div>
 
-      {/* Quick Stats */}
       <div className="grid md:grid-cols-4 gap-4">
         <Card className="border-2">
           <CardContent className="p-6">
@@ -77,7 +172,7 @@ export function DashboardHome() {
               </div>
             </div>
             <div className="space-y-1">
-              <div className="text-2xl font-bold">2,450</div>
+              <div className="text-2xl font-bold">{t("dashboard.statPlaceholder")}</div>
               <div className="text-sm text-muted-foreground">{t("dashboard.stat.calories")}</div>
             </div>
           </CardContent>
@@ -91,7 +186,7 @@ export function DashboardHome() {
               </div>
             </div>
             <div className="space-y-1">
-              <div className="text-2xl font-bold">165g</div>
+              <div className="text-2xl font-bold">{t("dashboard.statPlaceholder")}</div>
               <div className="text-sm text-muted-foreground">{t("dashboard.stat.protein")}</div>
             </div>
           </CardContent>
@@ -105,7 +200,7 @@ export function DashboardHome() {
               </div>
             </div>
             <div className="space-y-1">
-              <div className="text-2xl font-bold">-2.5kg</div>
+              <div className="text-2xl font-bold">{weightDeltaLabel}</div>
               <div className="text-sm text-muted-foreground">{t("dashboard.stat.weightChange")}</div>
             </div>
           </CardContent>
@@ -119,24 +214,25 @@ export function DashboardHome() {
               </div>
             </div>
             <div className="space-y-1">
-              <div className="text-2xl font-bold">18/20</div>
+              <div className="text-2xl font-bold">{data.workoutsThisMonth}</div>
               <div className="text-sm text-muted-foreground">{t("dashboard.stat.workoutsMonth")}</div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Main Content Grid */}
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Today's Workout */}
-        <Card className="lg:col-span-2 border-2">
+        <Card className="lg:col-span-2 border-2 dark:border-border">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Dumbbell className="size-5 text-primary" />
-                {t("dashboard.todayWorkout")}
-              </CardTitle>
-              <Link href="/dashboard/log-workout">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-1 min-w-0">
+                <CardTitle className="flex items-center gap-2">
+                  <Dumbbell className="size-5 text-primary shrink-0" />
+                  {t("dashboard.todayWorkout")}
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">{t("dashboard.todayWorkoutHint")}</p>
+              </div>
+              <Link href="/dashboard/log-workout" className="shrink-0">
                 <Button size="sm">
                   <PenSquare className="mr-2 size-4" />
                   {t("dashboard.logWorkout")}
@@ -145,26 +241,44 @@ export function DashboardHome() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {TODAY_EXERCISES.map((exercise, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between p-4 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
-              >
-                <div className="flex-1">
-                  <div className="font-semibold">{t(exercise.nameKey)}</div>
-                  <div className="text-sm text-muted-foreground">{exercise.sets}</div>
+            {!data.lastSession?.exercises.length ? (
+              <p className="text-sm text-muted-foreground py-4">{t("dashboard.todayWorkoutEmpty")}</p>
+            ) : (
+              <>
+                {data.lastSession.exercises.map((exercise, i) => (
+                  <div
+                    key={`${exercise.labelEn}-${exercise.labelId}-${i}`}
+                    className="flex items-center justify-between p-4 bg-muted/50 dark:bg-muted/20 rounded-lg hover:bg-muted/80 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold">
+                        {exercise.legacyNameKey
+                          ? t(exercise.legacyNameKey)
+                          : locale === "id"
+                            ? exercise.labelId
+                            : exercise.labelEn}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {t("dashboard.setsCount", { n: exercise.setsSummary })}
+                      </div>
+                    </div>
+                    <div className="text-sm font-medium text-primary shrink-0">
+                      {exercise.topWeightLabel != null ? `${exercise.topWeightLabel} kg` : "—"}
+                    </div>
+                  </div>
+                ))}
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/dashboard/log-workout/${data.lastSession.id}/detail`}>
+                      {t("dashboard.viewWorkoutDetail")}
+                    </Link>
+                  </Button>
                 </div>
-                <div className="text-sm font-medium text-primary">
-                  {exercise.weight === "bodyweight"
-                    ? t("dashboard.home.bodyweight")
-                    : exercise.weight}
-                </div>
-              </div>
-            ))}
+              </>
+            )}
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
         <div className="space-y-6">
           <Card className="border-2">
             <CardHeader>
@@ -200,9 +314,11 @@ export function DashboardHome() {
               <div>
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-muted-foreground">{t("dashboard.workoutsCompleted")}</span>
-                  <span className="font-semibold">3/5</span>
+                  <span className="font-semibold">
+                    {Math.min(data.workoutsThisMonth, 5)}/5
+                  </span>
                 </div>
-                <Progress value={60} />
+                <Progress value={Math.min(100, (Math.min(data.workoutsThisMonth, 5) / 5) * 100)} />
               </div>
               <div>
                 <div className="flex justify-between text-sm mb-2">
@@ -216,7 +332,6 @@ export function DashboardHome() {
         </div>
       </div>
 
-      {/* Weight Progress Chart */}
       <Card className="border-2">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -225,31 +340,34 @@ export function DashboardHome() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={weightData}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis dataKey="date" className="text-xs" />
-              <YAxis domain={[70, 76]} className="text-xs" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px",
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="weight"
-                stroke="hsl(var(--primary))"
-                strokeWidth={3}
-                dot={{ fill: "hsl(var(--primary))", r: 6 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          {!weightData.length ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">{t("dashboard.weightChartEmpty")}</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={weightData}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="date" className="text-xs" />
+                <YAxis domain={yDomain as [number, number]} className="text-xs" />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="weight"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={3}
+                  dot={{ fill: "hsl(var(--primary))", r: 6 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </CardContent>
       </Card>
 
-      {/* Recent Activity */}
       <Card className="border-2">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -258,29 +376,27 @@ export function DashboardHome() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {activities.map((activity, i) => (
-              <div key={i} className="flex items-start gap-4 pb-4 border-b last:border-0">
-                <div
-                  className={`size-10 rounded-lg flex items-center justify-center ${
-                    activity.type === "workout"
-                      ? "bg-primary/10"
-                      : activity.type === "nutrition"
-                      ? "bg-green-500/10"
-                      : "bg-blue-500/10"
-                  }`}
+          {!activities.length ? (
+            <p className="text-sm text-muted-foreground">{t("dashboard.recentEmpty")}</p>
+          ) : (
+            <div className="space-y-2">
+              {activities.map((activity) => (
+                <Link
+                  key={activity.id}
+                  href={`/dashboard/log-workout/${activity.id}/detail`}
+                  className="flex items-start gap-4 rounded-lg p-3 border border-transparent hover:bg-muted/60 dark:hover:bg-muted/20 hover:border-border/60 transition-colors cursor-pointer"
                 >
-                  {activity.type === "workout" && <Dumbbell className="size-5 text-primary" />}
-                  {activity.type === "nutrition" && <Utensils className="size-5 text-green-500" />}
-                  {activity.type === "ai" && <TrendingUp className="size-5 text-blue-500" />}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm">{activity.text}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{activity.time}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+                  <div className="size-10 rounded-lg flex items-center justify-center bg-primary/10 shrink-0">
+                    <Dumbbell className="size-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{activity.text}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{activity.time}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

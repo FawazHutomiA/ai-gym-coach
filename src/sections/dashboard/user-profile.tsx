@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -17,11 +18,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { User, Mail, Phone, Ruler, Weight, Bell, Save, Sparkles } from "lucide-react";
+import { User, Mail, Phone, Ruler, Weight, Bell, Save, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/contexts/i18n-context";
-
-const STORAGE_KEY = "ai-gym-coach-profile";
 
 export type UserProfileData = {
   displayName: string;
@@ -34,8 +33,8 @@ export type UserProfileData = {
   emailNotifications: boolean;
 };
 
-const defaultProfile: UserProfileData = {
-  displayName: "Athlete",
+const emptyProfile: UserProfileData = {
+  displayName: "",
   email: "",
   phone: "",
   goal: "maintenance",
@@ -44,18 +43,6 @@ const defaultProfile: UserProfileData = {
   heightCm: "",
   emailNotifications: true,
 };
-
-function loadProfile(): UserProfileData {
-  if (typeof window === "undefined") return defaultProfile;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultProfile;
-    const parsed = JSON.parse(raw) as Partial<UserProfileData>;
-    return { ...defaultProfile, ...parsed };
-  } catch {
-    return defaultProfile;
-  }
-}
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -66,11 +53,39 @@ function initials(name: string): string {
 
 export function UserProfile() {
   const { t } = useI18n();
-  const [profile, setProfile] = useState<UserProfileData>(defaultProfile);
+  const [profile, setProfile] = useState<UserProfileData>(emptyProfile);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setProfile(loadProfile());
-  }, []);
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/profile");
+        if (!res.ok) throw new Error("load");
+        const data = (await res.json()) as UserProfileData;
+        if (!cancelled) {
+          setProfile({
+            displayName: data.displayName ?? "",
+            email: data.email ?? "",
+            phone: data.phone ?? "",
+            goal: data.goal ?? "maintenance",
+            bio: data.bio ?? "",
+            weightKg: data.weightKg ?? "",
+            heightCm: data.heightCm ?? "",
+            emailNotifications: data.emailNotifications ?? true,
+          });
+        }
+      } catch {
+        toast.error(t("profile.toast.error"));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [t]);
 
   const update = <K extends keyof UserProfileData>(key: K, value: UserProfileData[K]) => {
     setProfile((p) => ({ ...p, [key]: value }));
@@ -78,16 +93,63 @@ export function UserProfile() {
 
   const goalLabel = (g: UserProfileData["goal"]) => t(`profile.goal.${g}`);
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setSaving(true);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          displayName: profile.displayName,
+          phone: profile.phone,
+          goal: profile.goal,
+          bio: profile.bio,
+          heightCm: profile.heightCm,
+          weightKg: profile.weightKg,
+          emailNotifications: profile.emailNotifications,
+        }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        toast.error(data.error ?? t("profile.toast.error"));
+        return;
+      }
       toast.success(t("profile.toast.saved"), {
         description: t("profile.toast.savedDesc"),
       });
     } catch {
       toast.error(t("profile.toast.error"));
+    } finally {
+      setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-10 w-48 rounded-xl" />
+            <Skeleton className="h-4 w-72 max-w-full rounded-md" />
+          </div>
+          <div className="flex items-center gap-3 rounded-2xl border border-border/80 dark:border-border bg-card/90 dark:bg-card/70 bg-gradient-to-r from-card to-primary/[0.06] dark:to-primary/10 px-4 py-3 shadow-sm dark:shadow-lg dark:shadow-black/25 self-start">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 dark:bg-primary/20">
+              <Loader2 className="size-5 text-primary animate-spin shrink-0" aria-hidden />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">{t("profile.loadingTitle")}</p>
+              <p className="text-xs text-muted-foreground">{t("profile.loadingSubtitle")}</p>
+            </div>
+          </div>
+        </div>
+        <Skeleton className="h-44 w-full rounded-2xl border border-dashed border-border/70 dark:border-primary/20 bg-muted/20 dark:bg-muted/10" />
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Skeleton className="h-96 w-full rounded-2xl border border-dashed border-border/70 dark:border-primary/20 bg-muted/20 dark:bg-muted/10" />
+          <Skeleton className="h-96 w-full rounded-2xl border border-dashed border-border/70 dark:border-primary/20 bg-muted/20 dark:bg-muted/10" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -106,12 +168,12 @@ export function UserProfile() {
             </Avatar>
             <div className="flex-1 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-2xl font-semibold">{profile.displayName}</h2>
+                <h2 className="text-2xl font-semibold">{profile.displayName || "—"}</h2>
                 <Badge variant="secondary">{goalLabel(profile.goal)}</Badge>
               </div>
               <p className="text-sm text-muted-foreground">{t("profile.memberNote")}</p>
             </div>
-            <Button onClick={handleSave} className="shrink-0 gap-2 sm:self-start">
+            <Button onClick={handleSave} disabled={saving} className="shrink-0 gap-2 sm:self-start">
               <Save className="size-4" />
               {t("profile.saveChanges")}
             </Button>
@@ -148,8 +210,9 @@ export function UserProfile() {
                 id="email"
                 type="email"
                 value={profile.email}
-                onChange={(e) => update("email", e.target.value)}
-                placeholder={t("profile.emailPh")}
+                readOnly
+                disabled
+                className="bg-muted/50"
                 autoComplete="email"
               />
             </div>
@@ -265,7 +328,7 @@ export function UserProfile() {
 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <p className="text-sm text-muted-foreground">{t("profile.footerNote")}</p>
-        <Button onClick={handleSave} size="lg" className="gap-2">
+        <Button onClick={handleSave} disabled={saving} size="lg" className="gap-2">
           <Save className="size-4" />
           {t("profile.saveProfile")}
         </Button>

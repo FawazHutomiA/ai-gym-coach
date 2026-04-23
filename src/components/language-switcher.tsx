@@ -15,13 +15,15 @@ type LanguageSwitcherProps = {
 export function LanguageSwitcher({ className, variant = "default" }: LanguageSwitcherProps) {
   const { locale, setLocale, t } = useI18n();
 
-  const Item = ({ value, label }: { value: Locale; label: string }) => (
+  const Item = ({ value, label, compact }: { value: Locale; label: string; compact?: boolean }) => (
     <Button
       type="button"
       variant={locale === value ? "secondary" : "ghost"}
       size="sm"
       className={cn(
-        "h-8 px-2.5 text-xs font-medium",
+        compact
+          ? "h-7 min-w-[1.75rem] shrink-0 px-1.5 text-[11px] font-semibold rounded-[5px]"
+          : "h-8 px-2.5 text-xs font-medium",
         locale === value && "bg-primary/15 text-primary hover:bg-primary/20",
       )}
       onClick={() => setLocale(value)}
@@ -33,9 +35,14 @@ export function LanguageSwitcher({ className, variant = "default" }: LanguageSwi
 
   if (variant === "compact") {
     return (
-      <div className={cn("flex items-center gap-0.5 rounded-lg border bg-muted/40 p-0.5", className)}>
-        <Item value="en" label="EN" />
-        <Item value="id" label="ID" />
+      <div
+        className={cn(
+          "inline-flex w-fit shrink-0 items-center gap-0 rounded-md border bg-muted/40 p-px",
+          className,
+        )}
+      >
+        <Item value="en" label="EN" compact />
+        <Item value="id" label="ID" compact />
       </div>
     );
   }
