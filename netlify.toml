@@ -1,0 +1,10 @@
+# Netlify: pastikan situs ini dipasang sebagai proyek Next.js (bukan "static site" manual).
+# Plugin ini menerapkan API Routes, Server Components server-side, dan Auth.js ke fungsi serverless.
+# Di dashboard Netlify: Site settings → Build & deploy → Environment variables
+# (DATABASE_URL, AUTH_SECRET, AUTH_URL / NEXTAUTH_URL, dll. sama seperti .env production).
+
+[build]
+  command = "npm run build"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
