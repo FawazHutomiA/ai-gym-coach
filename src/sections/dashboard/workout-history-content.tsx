@@ -209,24 +209,34 @@ export function WorkoutHistoryContent({ days, sessions }: WorkoutHistoryContentP
         <p className="text-muted-foreground">{t("workoutHistory.empty")}</p>
       ) : (
         <>
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Card className="border-2 border-border/80">
+          <div className="grid min-w-0 gap-6 lg:grid-cols-2">
+            <Card className="min-w-0 max-w-full border-2 border-border/80">
               <CardHeader>
                 <CardTitle className="text-base">{t("workoutHistory.chartVolumeTitle")}</CardTitle>
                 <CardDescription>{t("workoutHistory.chartVolumeDesc")}</CardDescription>
               </CardHeader>
-              <CardContent className="pl-0">
-                <ChartContainer config={volumeChartConfig} className="aspect-[16/9] w-full min-h-[220px]">
-                  <LineChart data={dailyVolumeRows} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
+              <CardContent className="min-w-0 px-3 pt-0 sm:px-6">
+                <ChartContainer
+                  config={volumeChartConfig}
+                  className="aspect-[4/3] w-full min-h-[200px] max-w-full sm:aspect-[16/9] sm:min-h-[220px]"
+                >
+                  <LineChart data={dailyVolumeRows} margin={{ left: 4, right: 4, top: 8, bottom: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
                     <XAxis
                       dataKey="label"
                       tickLine={false}
                       axisLine={false}
-                      tick={{ fontSize: 11 }}
+                      tick={{ fontSize: 10 }}
+                      height={40}
                       interval="preserveStartEnd"
                     />
-                    <YAxis tickLine={false} axisLine={false} width={40} tick={{ fontSize: 11 }} />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      width={36}
+                      tick={{ fontSize: 10 }}
+                      tickMargin={4}
+                    />
                     <ChartTooltip
                       content={
                         <ChartTooltipContent
@@ -252,32 +262,39 @@ export function WorkoutHistoryContent({ days, sessions }: WorkoutHistoryContentP
               </CardContent>
             </Card>
 
-            <Card className="border-2 border-border/80">
+            <Card className="min-w-0 max-w-full border-2 border-border/80">
               <CardHeader>
                 <CardTitle className="text-base">{t("workoutHistory.chartSessionsTitle")}</CardTitle>
                 <CardDescription>{t("workoutHistory.chartSessionsDesc")}</CardDescription>
               </CardHeader>
-              <CardContent className="pl-0">
-                <ChartContainer config={sessionChartConfig} className="aspect-[16/9] w-full min-h-[220px]">
-                  <BarChart data={dailyVolumeRows} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>
+              <CardContent className="min-w-0 px-3 pt-0 sm:px-6">
+                <ChartContainer
+                  config={sessionChartConfig}
+                  className="aspect-[4/3] w-full min-h-[200px] max-w-full sm:aspect-[16/9] sm:min-h-[220px]"
+                >
+                  <BarChart data={dailyVolumeRows} margin={{ left: 4, right: 4, top: 8, bottom: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
                     <XAxis
                       dataKey="label"
                       tickLine={false}
                       axisLine={false}
-                      tick={{ fontSize: 11 }}
+                      tick={{ fontSize: 10 }}
+                      height={40}
                       interval="preserveStartEnd"
                     />
                     <YAxis
                       allowDecimals={false}
                       tickLine={false}
                       axisLine={false}
-                      width={32}
-                      tick={{ fontSize: 11 }}
+                      width={28}
+                      tick={{ fontSize: 10 }}
+                      tickMargin={4}
                     />
                     <ChartTooltip
+                      cursor={{ fill: "transparent" }}
                       content={
                         <ChartTooltipContent
+                          className="border-border bg-popover text-popover-foreground shadow-md"
                           labelFormatter={(_, p) => {
                             const r = p?.[0]?.payload as { date?: string } | undefined;
                             if (r?.date) {
@@ -295,7 +312,7 @@ export function WorkoutHistoryContent({ days, sessions }: WorkoutHistoryContentP
             </Card>
           </div>
 
-          <Card className="border-2 border-border/80">
+          <Card className="min-w-0 max-w-full border-2 border-border/80">
             <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <CardTitle className="text-base">{t("workoutHistory.chartExerciseTitle")}</CardTitle>
@@ -303,7 +320,7 @@ export function WorkoutHistoryContent({ days, sessions }: WorkoutHistoryContentP
               </div>
               {exerciseOptions.length > 0 && (
                 <Select value={selectedExerciseId} onValueChange={setSelectedExerciseId}>
-                  <SelectTrigger className="w-full sm:w-[280px]">
+                  <SelectTrigger className="w-full min-w-0 sm:w-[280px]">
                     <SelectValue placeholder={t("workoutHistory.selectExercise")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -316,31 +333,38 @@ export function WorkoutHistoryContent({ days, sessions }: WorkoutHistoryContentP
                 </Select>
               )}
             </CardHeader>
-            <CardContent className="pl-0">
+            <CardContent className="min-w-0 px-3 sm:px-6">
               {exerciseDailyRows.length === 0 || !selectedExerciseLabel ? (
-                <p className="text-sm text-muted-foreground pl-2">{t("workoutHistory.exerciseNoData")}</p>
+                <p className="text-sm text-muted-foreground">{t("workoutHistory.exerciseNoData")}</p>
               ) : (
-                <div className="space-y-2">
-                  <p className="text-sm pl-2 text-muted-foreground">
+                <div className="min-w-0 space-y-2">
+                  <p className="text-sm text-muted-foreground">
                     {locale === "id" ? selectedExerciseLabel.labelId : selectedExerciseLabel.labelEn}
                   </p>
                   <ChartContainer
                     config={exerciseChartConfig}
-                    className="aspect-[21/9] w-full min-h-[220px]"
+                    className="aspect-[4/3] w-full min-h-[200px] max-w-full sm:aspect-[21/9] sm:min-h-[220px]"
                   >
                     <LineChart
                       data={exerciseDailyRows}
-                      margin={{ left: 8, right: 8, top: 8, bottom: 0 }}
+                      margin={{ left: 4, right: 4, top: 8, bottom: 8 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
                       <XAxis
                         dataKey="label"
                         tickLine={false}
                         axisLine={false}
-                        tick={{ fontSize: 11 }}
+                        tick={{ fontSize: 10 }}
+                        height={40}
                         interval="preserveStartEnd"
                       />
-                      <YAxis tickLine={false} axisLine={false} width={40} tick={{ fontSize: 11 }} />
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        width={36}
+                        tick={{ fontSize: 10 }}
+                        tickMargin={4}
+                      />
                       <ChartTooltip
                         content={
                           <ChartTooltipContent
