@@ -9,6 +9,7 @@ import { useI18n } from "@/contexts/i18n-context";
 import {
   Dumbbell,
   LayoutDashboard,
+  LineChart,
   PenSquare,
   TrendingUp,
   Utensils,
@@ -30,6 +31,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       { name: t("nav.profile"), href: "/dashboard/profile", icon: User },
       { name: t("nav.workouts"), href: "/dashboard/workouts", icon: Dumbbell },
       { name: t("nav.logWorkout"), href: "/dashboard/log-workout", icon: PenSquare },
+      { name: t("nav.workoutHistory"), href: "/dashboard/workout-history", icon: LineChart },
       { name: t("nav.adjustment"), href: "/dashboard/adjustment", icon: TrendingUp },
       { name: t("nav.nutrition"), href: "/dashboard/nutrition", icon: Utensils },
     ],

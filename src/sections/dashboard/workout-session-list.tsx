@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Eye, Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -17,14 +16,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useI18n } from "@/contexts/i18n-context";
-
-type SessionRow = {
-  id: string;
-  loggedAt: string;
-  title: string | null;
-  exerciseCount: number;
-};
+import type { WorkoutSessionDetailResponse } from "@/lib/workout-session-to-detail-json";
+import { WorkoutLogger } from "@/sections/dashboard/workout-logger";
 
 function formatSessionDate(iso: string, locale: string) {
   return new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", {
@@ -40,17 +35,18 @@ type WorkoutSessionListProps = {
 
 export function WorkoutSessionList({ refreshKey, onChanged }: WorkoutSessionListProps) {
   const { t, locale } = useI18n();
-  const [sessions, setSessions] = useState<SessionRow[]>([]);
+  const [sessions, setSessions] = useState<WorkoutSessionDetailResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
       try {
-        const res = await fetch("/api/workouts?limit=30");
-        const data = (await res.json()) as { sessions?: SessionRow[]; error?: string };
+        const res = await fetch("/api/workouts?limit=30&details=1");
+        const data = (await res.json()) as { sessions?: WorkoutSessionDetailResponse[]; error?: string };
         if (!res.ok) {
           if (!cancelled) toast.error(data.error ?? t("workoutLog.toast.error"));
           return;
@@ -77,7 +73,7 @@ export function WorkoutSessionList({ refreshKey, onChanged }: WorkoutSessionList
         return;
       }
       toast.success(t("workoutLog.toast.deleted"));
-      setSessions((prev) => prev.filter((s) => s.id !== id));
+      setSessions((prev) => prev.filter((s) => s.session.id !== id));
       onChanged?.();
     } catch {
       toast.error(t("workoutLog.toast.error"));
@@ -86,80 +82,133 @@ export function WorkoutSessionList({ refreshKey, onChanged }: WorkoutSessionList
     }
   };
 
+  const dash = t("workoutLog.detailSetEmpty");
+
   return (
-    <Card className="border-2 border-border dark:border-border">
-      <CardHeader>
-        <CardTitle className="text-lg">{t("workoutLog.historyTitle")}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <p className="text-sm text-muted-foreground">…</p>
-        ) : sessions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("workoutLog.historyEmpty")}</p>
-        ) : (
-          <ul className="space-y-2">
-            {sessions.map((s) => (
-              <li
-                key={s.id}
-                className="flex flex-col gap-2 rounded-lg border border-border/80 bg-muted/30 dark:bg-muted/15 p-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="min-w-0">
-                  <div className="font-medium truncate">
-                    {s.title?.trim() || formatSessionDate(s.loggedAt, locale)}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {s.title?.trim() ? `${formatSessionDate(s.loggedAt, locale)} · ` : ""}
-                    {t("workoutLog.exerciseCount", { n: s.exerciseCount })}
-                  </div>
-                </div>
-                <div className="flex shrink-0 flex-wrap items-center gap-1">
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/dashboard/log-workout/${s.id}/detail`}>
-                      <Eye className="mr-1.5 size-3.5" />
-                      {t("workoutLog.viewDetail")}
-                    </Link>
-                  </Button>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/dashboard/log-workout/${s.id}`}>
-                      <Pencil className="mr-1.5 size-3.5" />
-                      {t("workoutLog.edit")}
-                    </Link>
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:text-destructive"
-                        disabled={deletingId === s.id}
-                        type="button"
-                      >
-                        <Trash2 className="mr-1.5 size-3.5" />
-                        {t("workoutLog.delete")}
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>{t("workoutLog.deleteConfirmTitle")}</AlertDialogTitle>
-                        <AlertDialogDescription>{t("workoutLog.deleteConfirmDesc")}</AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>{t("workoutLog.deleteCancel")}</AlertDialogCancel>
-                        <AlertDialogAction
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          onClick={() => deleteSession(s.id)}
+    <>
+      <Card className="border-2 border-border dark:border-border">
+        <CardHeader>
+          <CardTitle className="text-lg">{t("workoutLog.historyTitle")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <p className="text-sm text-muted-foreground">…</p>
+          ) : sessions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t("workoutLog.historyEmpty")}</p>
+          ) : (
+            <ul className="space-y-4">
+              {sessions.map((item) => {
+                const s = item.session;
+                return (
+                  <li
+                    key={s.id}
+                    className="rounded-xl border border-border/80 bg-muted/30 dark:bg-muted/15 p-4"
+                  >
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                      <div className="min-w-0">
+                        <div className="font-medium">
+                          {s.title?.trim() || formatSessionDate(s.loggedAt, locale)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {s.title?.trim() ? `${formatSessionDate(s.loggedAt, locale)} · ` : ""}
+                          {t("workoutLog.exerciseCount", { n: item.exercises.length })}
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 flex-wrap items-center gap-1 sm:pt-0.5">
+                        <Button variant="outline" size="sm" type="button" onClick={() => setEditId(s.id)}>
+                          <Pencil className="mr-1.5 size-3.5" />
+                          {t("workoutLog.edit")}
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              disabled={deletingId === s.id}
+                              type="button"
+                            >
+                              <Trash2 className="mr-1.5 size-3.5" />
+                              {t("workoutLog.delete")}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>{t("workoutLog.deleteConfirmTitle")}</AlertDialogTitle>
+                              <AlertDialogDescription>{t("workoutLog.deleteConfirmDesc")}</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>{t("workoutLog.deleteCancel")}</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={() => deleteSession(s.id)}
+                              >
+                                {t("workoutLog.deleteConfirm")}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 space-y-3 border-t border-border/60 pt-4">
+                      {item.exercises.map((ex, i) => (
+                        <div
+                          key={`${ex.catalogExerciseId}-${i}`}
+                          className="rounded-lg border border-border/70 bg-card/50 dark:bg-card/30 px-3 py-2"
                         >
-                          {t("workoutLog.deleteConfirm")}
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+                          <p className="text-sm font-medium text-foreground">
+                            {locale === "id" ? ex.labelId : ex.labelEn}
+                          </p>
+                          <ul className="mt-2 space-y-1.5 text-sm">
+                            {ex.sets.map((set, j) => (
+                              <li
+                                key={`${ex.catalogExerciseId}-set-${j}`}
+                                className="flex justify-between gap-3 rounded-md bg-muted/50 dark:bg-muted/20 px-2 py-1.5"
+                              >
+                                <span className="text-muted-foreground tabular-nums">
+                                  {t("workoutLog.set", { n: j + 1 })}
+                                </span>
+                                <span className="font-medium tabular-nums text-foreground">
+                                  {t("workoutLog.detailSetLine", {
+                                    weight: set.weight?.trim() ? set.weight.trim() : dash,
+                                    reps: set.reps?.trim() ? set.reps.trim() : dash,
+                                  })}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={!!editId} onOpenChange={(open) => !open && setEditId(null)}>
+        <DialogContent className="max-h-[min(90vh,880px)] max-w-3xl gap-0 overflow-y-auto p-0 sm:max-w-3xl">
+          <DialogHeader className="border-b border-border px-6 py-4 text-left">
+            <DialogTitle>{t("workoutLog.editTitle")}</DialogTitle>
+          </DialogHeader>
+          {editId ? (
+            <div className="px-6 pb-6 pt-2">
+            <WorkoutLogger
+              key={editId}
+              sessionId={editId}
+              compact
+              onSaved={() => {
+                setEditId(null);
+                onChanged?.();
+              }}
+            />
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

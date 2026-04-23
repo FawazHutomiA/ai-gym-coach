@@ -49,9 +49,11 @@ function toDatetimeLocalValue(d: Date) {
 export type WorkoutLoggerProps = {
   sessionId?: string;
   onSaved?: () => void;
+  /** Form ringkas untuk dialog: tanpa navigasi setelah simpan, tanpa tips & header penuh. */
+  compact?: boolean;
 };
 
-export function WorkoutLogger({ sessionId, onSaved }: WorkoutLoggerProps) {
+export function WorkoutLogger({ sessionId, onSaved, compact = false }: WorkoutLoggerProps) {
   const { t, locale } = useI18n();
   const router = useRouter();
   const [catalog, setCatalog] = useState<CatalogExercise[]>([]);
@@ -101,7 +103,7 @@ export function WorkoutLogger({ sessionId, onSaved }: WorkoutLoggerProps) {
         };
         if (res.status === 404) {
           toast.error(t("workoutLog.notFound"));
-          router.replace("/dashboard/log-workout");
+          if (!compact) router.replace("/dashboard/log-workout");
           return;
         }
         if (!res.ok) {
@@ -134,7 +136,7 @@ export function WorkoutLogger({ sessionId, onSaved }: WorkoutLoggerProps) {
     return () => {
       cancelled = true;
     };
-  }, [sessionId, t, router]);
+  }, [sessionId, t, router, compact]);
 
   const tips = useMemo(
     () => [t("workoutLog.tip.0"), t("workoutLog.tip.1"), t("workoutLog.tip.2")],
@@ -245,7 +247,7 @@ export function WorkoutLogger({ sessionId, onSaved }: WorkoutLoggerProps) {
       }
       if (sessionId) {
         toast.success(t("workoutLog.toast.updated"));
-        router.push("/dashboard/log-workout");
+        if (!compact) router.push("/dashboard/log-workout");
         onSaved?.();
       } else {
         toast.success(t("workoutLog.toast.title"), {
@@ -267,36 +269,47 @@ export function WorkoutLogger({ sessionId, onSaved }: WorkoutLoggerProps) {
 
   if (sessionId && loadingSession) {
     return (
-      <div className="space-y-8">
+      <div className={compact ? "space-y-4" : "space-y-8"}>
         <p className="text-sm text-muted-foreground">…</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          {sessionId ? (
-            <Button variant="ghost" size="sm" className="mb-2 -ml-2" asChild>
-              <Link href="/dashboard/log-workout">
-                <ArrowLeft className="mr-2 size-4" />
-                {t("workoutLog.backToLog")}
-              </Link>
+    <div className={compact ? "space-y-4" : "space-y-8"}>
+      {compact ? (
+        <div className="flex justify-end">
+          {exercises.length > 0 && (
+            <Button onClick={saveWorkout} disabled={saving} type="button" className="shrink-0">
+              <Check className="mr-2 size-4" />
+              {saving ? "…" : t("workoutLog.update")}
             </Button>
-          ) : null}
-          <h1 className="text-4xl font-bold mb-2">
-            {sessionId ? t("workoutLog.editTitle") : t("workoutLog.title")}
-          </h1>
-          <p className="text-muted-foreground">{t("workoutLog.subtitle")}</p>
+          )}
         </div>
-        {exercises.length > 0 && (
-          <Button onClick={saveWorkout} disabled={saving} size="lg" type="button">
-            <Check className="mr-2 size-5" />
-            {saving ? "…" : sessionId ? t("workoutLog.update") : t("workoutLog.save")}
-          </Button>
-        )}
-      </div>
+      ) : (
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            {sessionId ? (
+              <Button variant="ghost" size="sm" className="mb-2 -ml-2" asChild>
+                <Link href="/dashboard/log-workout">
+                  <ArrowLeft className="mr-2 size-4" />
+                  {t("workoutLog.backToLog")}
+                </Link>
+              </Button>
+            ) : null}
+            <h1 className="text-4xl font-bold mb-2">
+              {sessionId ? t("workoutLog.editTitle") : t("workoutLog.title")}
+            </h1>
+            <p className="text-muted-foreground">{t("workoutLog.subtitle")}</p>
+          </div>
+          {exercises.length > 0 && (
+            <Button onClick={saveWorkout} disabled={saving} size="lg" type="button">
+              <Check className="mr-2 size-5" />
+              {saving ? "…" : sessionId ? t("workoutLog.update") : t("workoutLog.save")}
+            </Button>
+          )}
+        </div>
+      )}
 
       <Card className="border-2 border-border dark:border-border bg-card/50 dark:bg-card/30">
         <CardContent className="p-4 sm:p-6 grid gap-4 sm:grid-cols-2">
@@ -494,21 +507,23 @@ export function WorkoutLogger({ sessionId, onSaved }: WorkoutLoggerProps) {
         </div>
       )}
 
-      <Card className="border-2 dark:border-border">
-        <CardHeader>
-          <CardTitle>{t("workoutLog.tipsTitle")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2 text-sm">
-            {tips.map((tip, i) => (
-              <p key={i} className="flex items-start gap-2">
-                <span className="text-primary">•</span>
-                <span className="text-muted-foreground">{tip}</span>
-              </p>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {!compact ? (
+        <Card className="border-2 dark:border-border">
+          <CardHeader>
+            <CardTitle>{t("workoutLog.tipsTitle")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 text-sm">
+              {tips.map((tip, i) => (
+                <p key={i} className="flex items-start gap-2">
+                  <span className="text-primary">•</span>
+                  <span className="text-muted-foreground">{tip}</span>
+                </p>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }

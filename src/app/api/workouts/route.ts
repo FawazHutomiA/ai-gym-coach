@@ -4,6 +4,10 @@ import { getDb } from "@/db";
 import { workoutExercises, workoutSessions } from "@/db/schema";
 import { requireAppFeature } from "@/lib/auth/require-app-feature";
 import { normalizeSessionTitle, workoutUpsertBodySchema } from "@/lib/workout-log-body";
+import {
+  type WorkoutSessionDetailResponse,
+  workoutSessionToDetailJson,
+} from "@/lib/workout-session-to-detail-json";
 import { replaceSessionExercises } from "@/lib/workout-session-write";
 
 export async function POST(req: Request) {
@@ -61,10 +65,51 @@ export async function GET(req: Request) {
   if (!guard.ok) return guard.response;
 
   const { searchParams } = new URL(req.url);
-  const limit = Math.min(20, Math.max(1, parseInt(searchParams.get("limit") ?? "10", 10) || 10));
+  const limit = Math.min(30, Math.max(1, parseInt(searchParams.get("limit") ?? "10", 10) || 10));
+  const withDetails = searchParams.get("details") === "1" || searchParams.get("details") === "true";
 
   try {
     const db = getDb();
+
+    if (withDetails) {
+      const rows = await db.query.workoutSessions.findMany({
+        where: (ws, { eq: eqFn }) => eqFn(ws.userId, guard.session.user.id),
+        orderBy: (ws, { desc: d }) => [d(ws.loggedAt)],
+        limit,
+        with: {
+          exercises: {
+            orderBy: (we, { asc: a }) => [a(we.sortOrder)],
+            with: {
+              catalogExercise: true,
+              sets: { orderBy: (s, { asc: a }) => [a(s.setIndex)] },
+            },
+          },
+        },
+      });
+
+      const sessions: WorkoutSessionDetailResponse[] = [];
+
+      for (const row of rows) {
+        const built = await workoutSessionToDetailJson(db, {
+          id: row.id,
+          title: row.title,
+          loggedAt: row.loggedAt,
+          exercises: row.exercises.map((line) => ({
+            catalogExerciseId: line.catalogExerciseId,
+            exerciseKey: line.exerciseKey,
+            catalogExercise: line.catalogExercise,
+            sets: line.sets.map((s) => ({ weightKg: s.weightKg, reps: s.reps })),
+          })),
+        });
+        if (!built.ok) {
+          return NextResponse.json({ error: built.error }, { status: built.status });
+        }
+        sessions.push(built.data);
+      }
+
+      return NextResponse.json({ sessions });
+    }
+
     const rows = await db
       .select({
         id: workoutSessions.id,

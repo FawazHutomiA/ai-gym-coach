@@ -62,7 +62,7 @@ Salin `.env.example` ke `.env` dan isi nilai yang wajib (database, auth, dll.).
 bun dev
 ```
 
-Secara default: `http://localhost:3000` (cek terminal jika port berbeda).
+Secara default server pengembangan biasanya memakai **port 3000**; alamat lengkap (host + port) tercetak di terminal saat `bun dev` berjalan.
 
 ### 4. Build produksi
 

@@ -1,9 +1,10 @@
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { getDb } from "@/db";
-import { exercises, workoutSessions } from "@/db/schema";
+import { workoutSessions } from "@/db/schema";
 import { requireAppFeature } from "@/lib/auth/require-app-feature";
 import { normalizeSessionTitle, workoutUpsertBodySchema } from "@/lib/workout-log-body";
+import { workoutSessionToDetailJson } from "@/lib/workout-session-to-detail-json";
 import { replaceSessionExercises } from "@/lib/workout-session-write";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -34,61 +35,23 @@ export async function GET(_req: Request, context: RouteContext) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    const exercisesOut: {
-      catalogExerciseId: string;
-      labelEn: string;
-      labelId: string;
-      sets: { weight: string; reps: string }[];
-    }[] = [];
+    const built = await workoutSessionToDetailJson(db, {
+      id: row.id,
+      title: row.title,
+      loggedAt: row.loggedAt,
+      exercises: row.exercises.map((line) => ({
+        catalogExerciseId: line.catalogExerciseId,
+        exerciseKey: line.exerciseKey,
+        catalogExercise: line.catalogExercise,
+        sets: line.sets.map((s) => ({ weightKg: s.weightKg, reps: s.reps })),
+      })),
+    });
 
-    for (const line of row.exercises) {
-      let catalogExerciseId = line.catalogExerciseId ?? line.catalogExercise?.id ?? null;
-      let labelEn = line.catalogExercise?.labelEn ?? line.exerciseKey;
-      let labelId = line.catalogExercise?.labelId ?? line.exerciseKey;
-
-      if (!catalogExerciseId) {
-        const [bySlug] = await db
-          .select({
-            id: exercises.id,
-            labelEn: exercises.labelEn,
-            labelId: exercises.labelId,
-          })
-          .from(exercises)
-          .where(eq(exercises.slug, line.exerciseKey))
-          .limit(1);
-        if (bySlug) {
-          catalogExerciseId = bySlug.id;
-          labelEn = bySlug.labelEn;
-          labelId = bySlug.labelId;
-        }
-      }
-
-      if (!catalogExerciseId) {
-        return NextResponse.json(
-          { error: "Session has exercises that could not be matched to the catalog." },
-          { status: 422 },
-        );
-      }
-
-      exercisesOut.push({
-        catalogExerciseId,
-        labelEn,
-        labelId,
-        sets: line.sets.map((s) => ({
-          weight: s.weightKg != null ? String(s.weightKg) : "",
-          reps: s.reps != null ? String(s.reps) : "",
-        })),
-      });
+    if (!built.ok) {
+      return NextResponse.json({ error: built.error }, { status: built.status });
     }
 
-    return NextResponse.json({
-      session: {
-        id: row.id,
-        title: row.title,
-        loggedAt: row.loggedAt.toISOString(),
-      },
-      exercises: exercisesOut,
-    });
+    return NextResponse.json(built.data);
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "Failed to load workout" }, { status: 500 });
