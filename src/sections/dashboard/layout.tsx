@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { useI18n } from "@/contexts/i18n-context";
@@ -20,12 +20,22 @@ import {
 import { ThemeToggleButton } from "@/components/theme-toggle-button";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 
+function isNavActive(pathname: string, href: string) {
+  if (href === "/dashboard") {
+    return pathname === "/dashboard" || pathname === "/dashboard/";
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+type NavItem = { name: string; href: string; icon: typeof LayoutDashboard };
+
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { t } = useI18n();
 
-  const navigation = useMemo(
+  const navigation: NavItem[] = useMemo(
     () => [
       { name: t("nav.dashboard"), href: "/dashboard", icon: LayoutDashboard },
       { name: t("nav.profile"), href: "/dashboard/profile", icon: User },
@@ -38,9 +48,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     [t],
   );
 
+  /** Pra-muat rute agar pindah halaman terasa instan; sidebar tetap statis, loading cuma di `loading.tsx` area konten. */
+  useEffect(() => {
+    for (const item of navigation) {
+      router.prefetch(item.href);
+    }
+  }, [router, navigation]);
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Mobile Header */}
       <div className="lg:hidden border-b bg-card px-4 py-3 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-2">
           <Dumbbell className="size-6 text-primary" />
@@ -53,13 +69,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             variant="ghost"
             size="icon"
             onClick={() => setSidebarOpen(!sidebarOpen)}
+            aria-expanded={sidebarOpen}
           >
             {sidebarOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </Button>
         </div>
       </div>
 
-      {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div
           className="lg:hidden fixed inset-0 bg-black/50 z-40"
@@ -68,7 +84,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       )}
 
       <div className="flex">
-        {/* Sidebar */}
         <aside
           className={`
             fixed lg:sticky top-0 left-0 h-screen z-50
@@ -82,39 +97,44 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             <span className="font-bold truncate">AI Gym Coach</span>
           </div>
 
-          <nav className="p-4 space-y-2">
+          <nav className="p-4 space-y-2" aria-label="Main">
             {navigation.map((item) => {
-              const isActive = pathname === item.href;
+              const isActive = isNavActive(pathname, item.href);
               return (
-                <Link key={item.href} href={item.href} onClick={() => setSidebarOpen(false)}>
-                  <Button
-                    variant={isActive ? "secondary" : "ghost"}
-                    className={`w-full justify-start ${
-                      isActive ? "bg-primary/10 text-primary hover:bg-primary/20" : ""
-                    }`}
+                <Button
+                  key={item.href}
+                  variant={isActive ? "secondary" : "ghost"}
+                  className={`w-full justify-start ${
+                    isActive ? "bg-primary/10 text-primary hover:bg-primary/20" : ""
+                  }`}
+                  asChild
+                >
+                  <Link
+                    href={item.href}
+                    prefetch
+                    onClick={() => setSidebarOpen(false)}
+                    className="flex items-center"
                   >
-                    <item.icon className="mr-3 size-5" />
-                    {item.name}
-                  </Button>
-                </Link>
+                    <item.icon className="mr-3 size-5 shrink-0" aria-hidden />
+                    <span className="truncate text-left flex-1">{item.name}</span>
+                  </Link>
+                </Button>
               );
             })}
           </nav>
 
           <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-card/80 backdrop-blur space-y-2">
-            <Link href="/">
-              <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full" asChild>
+              <Link href="/" prefetch onClick={() => setSidebarOpen(false)}>
                 {t("nav.backLanding")}
-              </Button>
-            </Link>
+              </Link>
+            </Button>
             <SignOutButton variant="outline" className="w-full text-muted-foreground" />
           </div>
         </aside>
 
-        {/* Main Content */}
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto min-h-0">
           <div className="container mx-auto p-6 lg:p-8 max-w-7xl">
-            {/* Desktop: bahasa & tema di kanan (satu tempat; mobile ada di header atas) */}
             <div className="hidden lg:flex justify-end items-center gap-2 mb-6">
               <LanguageSwitcher variant="compact" className="shrink-0" />
               <ThemeToggleButton iconClassName="size-4" />

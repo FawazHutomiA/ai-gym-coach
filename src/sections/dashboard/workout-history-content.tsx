@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { enUS, id as localeId } from "date-fns/locale";
 import {
@@ -13,7 +14,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { toast } from "sonner";
 import { Calendar, LineChart as LineChartIcon, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,52 +32,31 @@ import {
 import { useI18n } from "@/contexts/i18n-context";
 import type { WorkoutSessionDetailResponse } from "@/lib/workout-session-to-detail-json";
 import {
+  WORKOUT_HISTORY_DAY_OPTIONS,
+  type WorkoutHistoryDays,
+} from "@/lib/workout-history-days";
+import {
   exerciseBestSetTonnage,
   exerciseVolumeInSession,
   sessionVolumeKg,
 } from "@/lib/workout-volume";
 
-type HistoryResponse = {
-  sessions?: WorkoutSessionDetailResponse[];
-  error?: string;
-  days?: number;
-};
-
-const DAY_OPTIONS = [30, 90, 120, 365] as const;
+export { WORKOUT_HISTORY_DAY_OPTIONS, parseWorkoutHistoryDays } from "@/lib/workout-history-days";
 
 function dateKeyLocal(iso: string): string {
   return format(parseISO(iso), "yyyy-MM-dd");
 }
 
-export function WorkoutHistoryContent() {
-  const { t, locale } = useI18n();
-  const dateLocale = locale === "id" ? localeId : enUS;
-  const [days, setDays] = useState<(typeof DAY_OPTIONS)[number]>(120);
-  const [sessions, setSessions] = useState<WorkoutSessionDetailResponse[]>([]);
-  const [loading, setLoading] = useState(true);
+type WorkoutHistoryContentProps = {
+  days: WorkoutHistoryDays;
+  sessions: WorkoutSessionDetailResponse[];
+};
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(`/api/workouts/history?days=${days}`);
-        const data = (await res.json()) as HistoryResponse;
-        if (!res.ok) {
-          if (!cancelled) toast.error(data.error ?? t("workoutHistory.loadError"));
-          return;
-        }
-        if (!cancelled) setSessions(data.sessions ?? []);
-      } catch {
-        if (!cancelled) toast.error(t("workoutHistory.loadError"));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [days, t]);
+export function WorkoutHistoryContent({ days, sessions }: WorkoutHistoryContentProps) {
+  const { t, locale } = useI18n();
+  const router = useRouter();
+  const pathname = usePathname();
+  const dateLocale = locale === "id" ? localeId : enUS;
 
   const exerciseOptions = useMemo(() => {
     const map = new Map<string, { id: string; labelEn: string; labelId: string; total: number }>();
@@ -186,10 +165,6 @@ export function WorkoutHistoryContent() {
     },
   } satisfies Parameters<typeof ChartContainer>[0]["config"];
 
-  if (loading) {
-    return <p className="text-sm text-muted-foreground">…</p>;
-  }
-
   return (
     <div className="space-y-10">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -204,13 +179,16 @@ export function WorkoutHistoryContent() {
           <span className="text-sm text-muted-foreground">{t("workoutHistory.rangeLabel")}</span>
           <Select
             value={String(days)}
-            onValueChange={(v) => setDays(Number(v) as (typeof DAY_OPTIONS)[number])}
+            onValueChange={(v) => {
+              const d = Number(v) as WorkoutHistoryDays;
+              router.push(`${pathname}?days=${d}`);
+            }}
           >
             <SelectTrigger className="w-[180px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {DAY_OPTIONS.map((d) => (
+              {WORKOUT_HISTORY_DAY_OPTIONS.map((d) => (
                 <SelectItem key={d} value={String(d)}>
                   {t("workoutHistory.daysOption", { n: d })}
                 </SelectItem>

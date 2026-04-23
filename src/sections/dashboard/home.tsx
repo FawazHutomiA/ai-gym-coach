@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { enUS, id as idLocale } from "date-fns/locale";
 import { useI18n } from "@/contexts/i18n-context";
+import type { DashboardPayload } from "@/lib/data/dashboard-payload";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dumbbell,
   Target,
@@ -18,7 +18,6 @@ import {
   Calendar,
   Flame,
   Trophy,
-  Loader2,
 } from "lucide-react";
 import {
   LineChart,
@@ -30,30 +29,10 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-type DashboardPayload = {
-  userName: string;
-  weightSeries: { at: string; weightKg: number }[];
-  workoutsThisMonth: number;
-  weightChangeKg: number | null;
-  lastSession: null | {
-    id: string;
-    loggedAt: string;
-    exercises: {
-      labelEn: string;
-      labelId: string;
-      legacyNameKey: string | null;
-      setsSummary: string;
-      topWeightLabel: string | null;
-    }[];
-  };
-  recentWorkouts: { id: string; at: string; label: string }[];
-};
+type Props = { data: DashboardPayload };
 
-export function DashboardHome() {
+export function DashboardHome({ data }: Props) {
   const { t, locale } = useI18n();
-  const [data, setData] = useState<DashboardPayload | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
 
   const dateLocale = locale === "id" ? idLocale : enUS;
   const dateOpts = useMemo(
@@ -61,91 +40,32 @@ export function DashboardHome() {
     [],
   );
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/dashboard");
-        if (!res.ok) throw new Error("dashboard");
-        const json = (await res.json()) as DashboardPayload;
-        if (!cancelled) setData(json);
-      } catch {
-        if (!cancelled) setLoadError(true);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const weightData = useMemo(() => {
-    if (!data?.weightSeries.length) return [];
+    if (!data.weightSeries.length) return [];
     const slice = data.weightSeries.slice(-12);
     return slice.map((p) => ({
       date: new Date(p.at).toLocaleDateString(locale === "id" ? "id-ID" : "en-US", dateOpts),
       weight: p.weightKg,
     }));
-  }, [data?.weightSeries, locale, dateOpts]);
+  }, [data.weightSeries, locale, dateOpts]);
 
   const yDomain = useMemo(() => {
-    if (!data?.weightSeries.length) return [0, 100];
+    if (!data.weightSeries.length) return [0, 100];
     const w = data.weightSeries.map((p) => p.weightKg);
     const lo = Math.min(...w);
     const hi = Math.max(...w);
     const pad = Math.max(1, (hi - lo) * 0.15 || 2);
     return [Math.floor((lo - pad) * 10) / 10, Math.ceil((hi + pad) * 10) / 10];
-  }, [data?.weightSeries]);
+  }, [data.weightSeries]);
 
   const activities = useMemo(() => {
-    if (!data?.recentWorkouts.length) return [];
+    if (!data.recentWorkouts.length) return [];
     return data.recentWorkouts.map((r) => ({
       id: r.id,
       text: r.label,
       time: formatDistanceToNow(new Date(r.at), { addSuffix: true, locale: dateLocale }),
     }));
-  }, [data?.recentWorkouts, dateLocale]);
-
-  if (loading) {
-    return (
-      <div className="space-y-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-3 flex-1">
-            <Skeleton className="h-11 w-full max-w-md rounded-xl" />
-            <Skeleton className="h-5 w-52 max-w-full rounded-md" />
-          </div>
-          <div className="flex items-center gap-3 self-start rounded-2xl border border-border/80 dark:border-border bg-card/90 dark:bg-card/70 bg-gradient-to-r from-card to-primary/[0.06] dark:to-primary/10 px-4 py-3 shadow-sm dark:shadow-lg dark:shadow-black/25">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 dark:bg-primary/20">
-              <Loader2 className="size-5 text-primary animate-spin shrink-0" aria-hidden />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-foreground">{t("dashboard.loadingTitle")}</p>
-              <p className="text-xs text-muted-foreground">{t("dashboard.loadingSubtitle")}</p>
-            </div>
-          </div>
-        </div>
-        <div className="grid md:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton
-              key={i}
-              className="h-28 w-full rounded-xl border border-border/50 dark:border-border/80 bg-muted/50 dark:bg-muted/40"
-            />
-          ))}
-        </div>
-        <div className="grid lg:grid-cols-3 gap-6">
-          <Skeleton className="lg:col-span-2 h-72 w-full rounded-2xl border border-dashed border-border/70 dark:border-primary/20 bg-muted/20 dark:bg-muted/10" />
-          <Skeleton className="h-72 w-full rounded-2xl border border-dashed border-border/70 dark:border-primary/20 bg-muted/20 dark:bg-muted/10" />
-        </div>
-      </div>
-    );
-  }
-
-  if (loadError || !data) {
-    return (
-      <p className="text-muted-foreground">{t("dashboard.loadError")}</p>
-    );
-  }
+  }, [data.recentWorkouts, dateLocale]);
 
   const welcomeTitle = data.userName?.trim()
     ? t("dashboard.welcomeNamed", { name: data.userName.trim() })

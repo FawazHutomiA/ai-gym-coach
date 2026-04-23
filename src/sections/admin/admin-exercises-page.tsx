@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,20 +16,10 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { ContentLoading } from "@/components/loading/content-loading";
 import { useI18n } from "@/contexts/i18n-context";
+import type { AdminExerciseRow } from "@/lib/data/admin-lists";
 
-type ExerciseRow = {
-  id: string;
-  slug: string;
-  labelEn: string;
-  labelId: string;
-  sortOrder: number;
-  isActive: boolean;
-  migrationKey: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
+type ExerciseRow = AdminExerciseRow;
 
 const emptyForm = {
   slug: "",
@@ -37,10 +28,12 @@ const emptyForm = {
   sortOrder: "100",
 };
 
-export function AdminExercisesPage() {
+type AdminExercisesPageProps = { initialExercises: ExerciseRow[] };
+
+export function AdminExercisesPage({ initialExercises }: AdminExercisesPageProps) {
   const { t } = useI18n();
-  const [rows, setRows] = useState<ExerciseRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const [rows, setRows] = useState<ExerciseRow[]>(initialExercises);
   const [form, setForm] = useState(emptyForm);
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -52,23 +45,9 @@ export function AdminExercisesPage() {
   });
   const [savingId, setSavingId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/admin/exercises");
-      if (!res.ok) throw new Error();
-      const data = (await res.json()) as { exercises: ExerciseRow[] };
-      setRows(data.exercises);
-    } catch {
-      toast.error(t("admin.exercises.toast.loadError"));
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
-
   useEffect(() => {
-    load();
-  }, [load]);
+    setRows(initialExercises);
+  }, [initialExercises]);
 
   async function createExercise(e: React.FormEvent) {
     e.preventDefault();
@@ -93,7 +72,7 @@ export function AdminExercisesPage() {
       }
       toast.success(t("admin.exercises.toast.created"));
       setForm(emptyForm);
-      await load();
+      router.refresh();
     } catch {
       toast.error(t("admin.exercises.toast.createError"));
     } finally {
@@ -132,7 +111,7 @@ export function AdminExercisesPage() {
       }
       toast.success(t("admin.exercises.toast.saved"));
       setEditingId(null);
-      await load();
+      router.refresh();
     } catch {
       toast.error(t("admin.exercises.toast.saveError"));
     } finally {
@@ -151,16 +130,10 @@ export function AdminExercisesPage() {
       toast.success(
         data.mode === "deleted" ? t("admin.exercises.toast.deleted") : t("admin.exercises.toast.deactivated"),
       );
-      await load();
+      router.refresh();
     } catch {
       toast.error(t("admin.exercises.toast.actionError"));
     }
-  }
-
-  if (loading) {
-    return (
-      <ContentLoading titleKey="loading.admin.exercisesTitle" subtitleKey="loading.admin.exercisesSubtitle" />
-    );
   }
 
   return (

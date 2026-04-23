@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,46 +23,30 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import { SUPER_ADMIN_ACCOUNT_EMAIL } from "@/lib/auth/super-admin-account";
-import { ContentLoading } from "@/components/loading/content-loading";
 import { useI18n } from "@/contexts/i18n-context";
+import type { AdminUserRow } from "@/lib/data/admin-lists";
 
-type UserRow = {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-  createdAt: string;
-};
+function editsFromUsers(users: AdminUserRow[]) {
+  const next: Record<string, { name: string; role: string }> = {};
+  for (const u of users) {
+    next[u.id] = { name: u.name, role: u.role };
+  }
+  return next;
+}
 
-export function AdminUsersPage() {
+type AdminUsersPageProps = { initialUsers: AdminUserRow[] };
+
+export function AdminUsersPage({ initialUsers }: AdminUsersPageProps) {
   const { t } = useI18n();
-  const [users, setUsers] = useState<UserRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [edits, setEdits] = useState<Record<string, { name: string; role: string }>>({});
+  const router = useRouter();
+  const [users, setUsers] = useState(initialUsers);
+  const [edits, setEdits] = useState(() => editsFromUsers(initialUsers));
   const [savingId, setSavingId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/admin/users");
-      if (!res.ok) throw new Error();
-      const data = (await res.json()) as { users: UserRow[] };
-      setUsers(data.users);
-      const next: Record<string, { name: string; role: string }> = {};
-      for (const u of data.users) {
-        next[u.id] = { name: u.name, role: u.role };
-      }
-      setEdits(next);
-    } catch {
-      toast.error(t("admin.users.toast.loadError"));
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
-
   useEffect(() => {
-    load();
-  }, [load]);
+    setUsers(initialUsers);
+    setEdits(editsFromUsers(initialUsers));
+  }, [initialUsers]);
 
   async function saveUser(id: string) {
     const e = edits[id];
@@ -79,18 +64,12 @@ export function AdminUsersPage() {
         return;
       }
       toast.success(t("admin.users.toast.updated"));
-      await load();
+      router.refresh();
     } catch {
       toast.error(t("admin.users.toast.saveError"));
     } finally {
       setSavingId(null);
     }
-  }
-
-  if (loading) {
-    return (
-      <ContentLoading titleKey="loading.admin.usersTitle" subtitleKey="loading.admin.usersSubtitle" />
-    );
   }
 
   return (

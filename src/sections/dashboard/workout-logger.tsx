@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { CatalogExerciseRow } from "@/lib/data/exercises-catalog";
+import type { WorkoutSessionDetailResponse } from "@/lib/workout-session-to-detail-json";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,9 +17,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Check, PenSquare, Plus, Trash2, TrendingUp } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ArrowLeft, Check, Loader2, PenSquare, Plus, Trash2, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/contexts/i18n-context";
+import { PageLoadingSkeleton } from "@/components/skeletons/page-loading-skeleton";
 
 type Set = {
   id: string;
@@ -46,26 +50,60 @@ function toDatetimeLocalValue(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function formStateFromDetail(d: WorkoutSessionDetailResponse) {
+  return {
+    sessionTitle: d.session.title ?? "",
+    sessionLoggedAt: toDatetimeLocalValue(new Date(d.session.loggedAt)),
+    exercises: d.exercises.map((ex, i) => ({
+      id: `loaded-${i}-${ex.catalogExerciseId}`,
+      catalogExerciseId: ex.catalogExerciseId,
+      labelEn: ex.labelEn,
+      labelId: ex.labelId,
+      sets: ex.sets.map((s, j) => ({
+        id: `loaded-set-${i}-${j}`,
+        weight: s.weight,
+        reps: s.reps,
+      })),
+    })),
+  };
+}
+
 export type WorkoutLoggerProps = {
   sessionId?: string;
   onSaved?: () => void;
   /** Form ringkas untuk dialog: tanpa navigasi setelah simpan, tanpa tips & header penuh. */
   compact?: boolean;
+  initialCatalog?: CatalogExerciseRow[];
+  initialDetail?: WorkoutSessionDetailResponse | null;
 };
 
-export function WorkoutLogger({ sessionId, onSaved, compact = false }: WorkoutLoggerProps) {
+export function WorkoutLogger({
+  sessionId,
+  onSaved,
+  compact = false,
+  initialCatalog,
+  initialDetail = null,
+}: WorkoutLoggerProps) {
   const { t, locale } = useI18n();
   const router = useRouter();
-  const [catalog, setCatalog] = useState<CatalogExercise[]>([]);
-  const [catalogLoading, setCatalogLoading] = useState(true);
-  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const fromDetail = sessionId && initialDetail ? formStateFromDetail(initialDetail) : null;
+  const [catalog, setCatalog] = useState<CatalogExercise[]>(() => initialCatalog ?? []);
+  const [catalogLoading, setCatalogLoading] = useState(() => initialCatalog === undefined);
+  const [exercises, setExercises] = useState<Exercise[]>(() => fromDetail?.exercises ?? []);
   const [currentExerciseId, setCurrentExerciseId] = useState("");
-  const [sessionTitle, setSessionTitle] = useState("");
-  const [sessionLoggedAt, setSessionLoggedAt] = useState(() => toDatetimeLocalValue(new Date()));
-  const [loadingSession, setLoadingSession] = useState(!!sessionId);
+  const [sessionTitle, setSessionTitle] = useState(() => fromDetail?.sessionTitle ?? "");
+  const [sessionLoggedAt, setSessionLoggedAt] = useState(
+    () => fromDetail?.sessionLoggedAt ?? toDatetimeLocalValue(new Date()),
+  );
+  const [loadingSession, setLoadingSession] = useState(() => Boolean(sessionId && !initialDetail));
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    if (initialCatalog !== undefined) {
+      setCatalog(initialCatalog);
+      setCatalogLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -82,10 +120,10 @@ export function WorkoutLogger({ sessionId, onSaved, compact = false }: WorkoutLo
     return () => {
       cancelled = true;
     };
-  }, [t]);
+  }, [initialCatalog, t]);
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId || initialDetail) return;
     let cancelled = false;
     (async () => {
       setLoadingSession(true);
@@ -136,7 +174,7 @@ export function WorkoutLogger({ sessionId, onSaved, compact = false }: WorkoutLo
     return () => {
       cancelled = true;
     };
-  }, [sessionId, t, router, compact]);
+  }, [sessionId, initialDetail, t, router, compact]);
 
   const tips = useMemo(
     () => [t("workoutLog.tip.0"), t("workoutLog.tip.1"), t("workoutLog.tip.2")],
@@ -249,6 +287,7 @@ export function WorkoutLogger({ sessionId, onSaved, compact = false }: WorkoutLo
         toast.success(t("workoutLog.toast.updated"));
         if (!compact) router.push("/dashboard/log-workout");
         onSaved?.();
+        router.refresh();
       } else {
         toast.success(t("workoutLog.toast.title"), {
           description: t("workoutLog.toast.desc", { n: exercises.length }),
@@ -257,6 +296,7 @@ export function WorkoutLogger({ sessionId, onSaved, compact = false }: WorkoutLo
         setSessionTitle("");
         setSessionLoggedAt(toDatetimeLocalValue(new Date()));
         onSaved?.();
+        router.refresh();
       }
     } catch {
       toast.error(t("workoutLog.toast.error"));
@@ -270,7 +310,7 @@ export function WorkoutLogger({ sessionId, onSaved, compact = false }: WorkoutLo
   if (sessionId && loadingSession) {
     return (
       <div className={compact ? "space-y-4" : "space-y-8"}>
-        <p className="text-sm text-muted-foreground">…</p>
+        <PageLoadingSkeleton variant={compact ? "minimal" : "default"} />
       </div>
     );
   }
@@ -281,8 +321,14 @@ export function WorkoutLogger({ sessionId, onSaved, compact = false }: WorkoutLo
         <div className="flex justify-end">
           {exercises.length > 0 && (
             <Button onClick={saveWorkout} disabled={saving} type="button" className="shrink-0">
-              <Check className="mr-2 size-4" />
-              {saving ? "…" : t("workoutLog.update")}
+              {saving ? (
+                <Loader2 className="size-4 shrink-0 animate-spin" />
+              ) : (
+                <>
+                  <Check className="mr-2 size-4" />
+                  {t("workoutLog.update")}
+                </>
+              )}
             </Button>
           )}
         </div>
@@ -304,8 +350,12 @@ export function WorkoutLogger({ sessionId, onSaved, compact = false }: WorkoutLo
           </div>
           {exercises.length > 0 && (
             <Button onClick={saveWorkout} disabled={saving} size="lg" type="button">
-              <Check className="mr-2 size-5" />
-              {saving ? "…" : sessionId ? t("workoutLog.update") : t("workoutLog.save")}
+              {saving ? (
+                <Loader2 className="mr-2 size-5 shrink-0 animate-spin" />
+              ) : (
+                <Check className="mr-2 size-5" />
+              )}
+              {saving ? null : sessionId ? t("workoutLog.update") : t("workoutLog.save")}
             </Button>
           )}
         </div>
@@ -368,43 +418,48 @@ export function WorkoutLogger({ sessionId, onSaved, compact = false }: WorkoutLo
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col gap-4 sm:flex-row">
-            <div className="flex-1">
-              <Select
-                value={currentExerciseId}
-                onValueChange={setCurrentExerciseId}
-                disabled={catalogLoading || catalog.length === 0}
-              >
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      catalogLoading
-                        ? "…"
-                        : catalog.length === 0
+          {catalogLoading ? (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Skeleton className="h-10 w-full sm:flex-1 rounded-md" />
+              <Skeleton className="h-10 w-full sm:w-36 rounded-md" />
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4 sm:flex-row">
+              <div className="flex-1">
+                <Select
+                  value={currentExerciseId}
+                  onValueChange={setCurrentExerciseId}
+                  disabled={catalog.length === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        catalog.length === 0
                           ? t("workoutLog.catalogEmpty")
                           : t("workoutLog.selectPlaceholder")
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {catalog.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {locale === "id" ? c.labelId : c.labelEn}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {catalog.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {locale === "id" ? c.labelId : c.labelEn}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                onClick={addExercise}
+                disabled={!currentExerciseId}
+                type="button"
+                className="shrink-0"
+              >
+                <Plus className="mr-2 size-4" />
+                {t("workoutLog.addExerciseBtn")}
+              </Button>
             </div>
-            <Button
-              onClick={addExercise}
-              disabled={!currentExerciseId || catalogLoading}
-              type="button"
-              className="shrink-0"
-            >
-              <Plus className="mr-2 size-4" />
-              {t("workoutLog.addExerciseBtn")}
-            </Button>
-          </div>
+          )}
         </CardContent>
       </Card>
 

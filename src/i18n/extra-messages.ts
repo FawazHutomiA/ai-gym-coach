@@ -144,6 +144,7 @@ export const extraMessagesEn: Record<string, string> = {
   "workoutHistory.legendSessions": "Sessions",
   "workoutHistory.sessionVolume": "Volume {{kg}} kg",
 
+  "common.pageLoading": "Loading…",
   "adjustment.title": "Weekly AI Adjustment",
   "adjustment.subtitle": "AI analysis of your progress with personalized recommendations",
   "adjustment.aiSummaryTitle": "AI Analysis - Week 4 Summary",
@@ -398,6 +399,7 @@ export const extraMessagesId: Record<string, string> = {
   "workoutHistory.legendSessions": "Sesi",
   "workoutHistory.sessionVolume": "Volume {{kg}} kg",
 
+  "common.pageLoading": "Memuat…",
   "adjustment.title": "Penyesuaian mingguan AI",
   "adjustment.subtitle": "Analisis AI terhadap progres dan rekomendasi personal",
   "adjustment.aiSummaryTitle": "Analisis AI - Ringkasan minggu 4",

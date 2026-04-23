@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -18,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useI18n } from "@/contexts/i18n-context";
+import type { CatalogExerciseRow } from "@/lib/data/exercises-catalog";
 import type { WorkoutSessionDetailResponse } from "@/lib/workout-session-to-detail-json";
 import { WorkoutLogger } from "@/sections/dashboard/workout-logger";
 
@@ -29,39 +31,15 @@ function formatSessionDate(iso: string, locale: string) {
 }
 
 type WorkoutSessionListProps = {
-  refreshKey: number;
-  onChanged?: () => void;
+  sessions: WorkoutSessionDetailResponse[];
+  exerciseCatalog: CatalogExerciseRow[];
 };
 
-export function WorkoutSessionList({ refreshKey, onChanged }: WorkoutSessionListProps) {
+export function WorkoutSessionList({ sessions, exerciseCatalog }: WorkoutSessionListProps) {
   const { t, locale } = useI18n();
-  const [sessions, setSessions] = useState<WorkoutSessionDetailResponse[]>([]);
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
-        const res = await fetch("/api/workouts?limit=30&details=1");
-        const data = (await res.json()) as { sessions?: WorkoutSessionDetailResponse[]; error?: string };
-        if (!res.ok) {
-          if (!cancelled) toast.error(data.error ?? t("workoutLog.toast.error"));
-          return;
-        }
-        if (!cancelled) setSessions(data.sessions ?? []);
-      } catch {
-        if (!cancelled) toast.error(t("workoutLog.toast.error"));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [refreshKey, t]);
 
   const deleteSession = async (id: string) => {
     setDeletingId(id);
@@ -73,8 +51,7 @@ export function WorkoutSessionList({ refreshKey, onChanged }: WorkoutSessionList
         return;
       }
       toast.success(t("workoutLog.toast.deleted"));
-      setSessions((prev) => prev.filter((s) => s.session.id !== id));
-      onChanged?.();
+      router.refresh();
     } catch {
       toast.error(t("workoutLog.toast.error"));
     } finally {
@@ -83,6 +60,7 @@ export function WorkoutSessionList({ refreshKey, onChanged }: WorkoutSessionList
   };
 
   const dash = t("workoutLog.detailSetEmpty");
+  const editDetail = editId ? sessions.find((s) => s.session.id === editId) ?? null : null;
 
   return (
     <>
@@ -91,9 +69,7 @@ export function WorkoutSessionList({ refreshKey, onChanged }: WorkoutSessionList
           <CardTitle className="text-lg">{t("workoutLog.historyTitle")}</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <p className="text-sm text-muted-foreground">…</p>
-          ) : sessions.length === 0 ? (
+          {sessions.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t("workoutLog.historyEmpty")}</p>
           ) : (
             <ul className="space-y-4">
@@ -194,17 +170,16 @@ export function WorkoutSessionList({ refreshKey, onChanged }: WorkoutSessionList
           <DialogHeader className="border-b border-border px-6 py-4 text-left">
             <DialogTitle>{t("workoutLog.editTitle")}</DialogTitle>
           </DialogHeader>
-          {editId ? (
+          {editId && editDetail ? (
             <div className="px-6 pb-6 pt-2">
-            <WorkoutLogger
-              key={editId}
-              sessionId={editId}
-              compact
-              onSaved={() => {
-                setEditId(null);
-                onChanged?.();
-              }}
-            />
+              <WorkoutLogger
+                key={editId}
+                sessionId={editId}
+                compact
+                initialCatalog={exerciseCatalog}
+                initialDetail={editDetail}
+                onSaved={() => setEditId(null)}
+              />
             </div>
           ) : null}
         </DialogContent>

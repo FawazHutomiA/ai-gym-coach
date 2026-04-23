@@ -1,23 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ArrowLeft, Pencil } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useI18n } from "@/contexts/i18n-context";
-
-type DetailPayload = {
-  session: { id: string; title: string | null; loggedAt: string };
-  exercises: {
-    catalogExerciseId: string;
-    labelEn: string;
-    labelId: string;
-    sets: { weight: string; reps: string }[];
-  }[];
-};
+import type { WorkoutSessionDetailResponse } from "@/lib/workout-session-to-detail-json";
 
 function formatSessionWhen(iso: string, locale: string) {
   return new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", {
@@ -26,47 +14,13 @@ function formatSessionWhen(iso: string, locale: string) {
   }).format(new Date(iso));
 }
 
-export function WorkoutSessionDetailView({ sessionId }: { sessionId: string }) {
+type WorkoutSessionDetailViewProps = {
+  data: WorkoutSessionDetailResponse;
+};
+
+export function WorkoutSessionDetailView({ data }: WorkoutSessionDetailViewProps) {
   const { t, locale } = useI18n();
-  const router = useRouter();
-  const [data, setData] = useState<DetailPayload | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(`/api/workouts/${sessionId}`);
-        const json = (await res.json()) as DetailPayload & { error?: string };
-        if (res.status === 404) {
-          toast.error(t("workoutLog.notFound"));
-          router.replace("/dashboard/log-workout");
-          return;
-        }
-        if (!res.ok) {
-          toast.error(json.error ?? t("workoutLog.loadError"));
-          return;
-        }
-        if (!cancelled) setData(json as DetailPayload);
-      } catch {
-        if (!cancelled) toast.error(t("workoutLog.loadError"));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [sessionId, t, router]);
-
-  if (loading) {
-    return <p className="text-sm text-muted-foreground">…</p>;
-  }
-
-  if (!data?.session) {
-    return null;
-  }
-
+  const sessionId = data.session.id;
   const dash = t("workoutLog.detailSetEmpty");
 
   return (

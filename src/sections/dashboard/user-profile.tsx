@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,7 +10,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { User, Mail, Phone, Ruler, Weight, Bell, Save, Sparkles, Loader2 } from "lucide-react";
+import { User, Mail, Phone, Ruler, Weight, Bell, Save, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/contexts/i18n-context";
 
@@ -33,17 +33,6 @@ export type UserProfileData = {
   emailNotifications: boolean;
 };
 
-const emptyProfile: UserProfileData = {
-  displayName: "",
-  email: "",
-  phone: "",
-  goal: "maintenance",
-  bio: "",
-  weightKg: "",
-  heightCm: "",
-  emailNotifications: true,
-};
-
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";
@@ -51,41 +40,13 @@ function initials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-export function UserProfile() {
-  const { t } = useI18n();
-  const [profile, setProfile] = useState<UserProfileData>(emptyProfile);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+type UserProfileProps = { initialData: UserProfileData };
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/profile");
-        if (!res.ok) throw new Error("load");
-        const data = (await res.json()) as UserProfileData;
-        if (!cancelled) {
-          setProfile({
-            displayName: data.displayName ?? "",
-            email: data.email ?? "",
-            phone: data.phone ?? "",
-            goal: data.goal ?? "maintenance",
-            bio: data.bio ?? "",
-            weightKg: data.weightKg ?? "",
-            heightCm: data.heightCm ?? "",
-            emailNotifications: data.emailNotifications ?? true,
-          });
-        }
-      } catch {
-        toast.error(t("profile.toast.error"));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [t]);
+export function UserProfile({ initialData }: UserProfileProps) {
+  const { t } = useI18n();
+  const router = useRouter();
+  const [profile, setProfile] = useState<UserProfileData>(initialData);
+  const [saving, setSaving] = useState(false);
 
   const update = <K extends keyof UserProfileData>(key: K, value: UserProfileData[K]) => {
     setProfile((p) => ({ ...p, [key]: value }));
@@ -117,39 +78,13 @@ export function UserProfile() {
       toast.success(t("profile.toast.saved"), {
         description: t("profile.toast.savedDesc"),
       });
+      router.refresh();
     } catch {
       toast.error(t("profile.toast.error"));
     } finally {
       setSaving(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="space-y-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-2">
-            <Skeleton className="h-10 w-48 rounded-xl" />
-            <Skeleton className="h-4 w-72 max-w-full rounded-md" />
-          </div>
-          <div className="flex items-center gap-3 rounded-2xl border border-border/80 dark:border-border bg-card/90 dark:bg-card/70 bg-gradient-to-r from-card to-primary/[0.06] dark:to-primary/10 px-4 py-3 shadow-sm dark:shadow-lg dark:shadow-black/25 self-start">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 dark:bg-primary/20">
-              <Loader2 className="size-5 text-primary animate-spin shrink-0" aria-hidden />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-foreground">{t("profile.loadingTitle")}</p>
-              <p className="text-xs text-muted-foreground">{t("profile.loadingSubtitle")}</p>
-            </div>
-          </div>
-        </div>
-        <Skeleton className="h-44 w-full rounded-2xl border border-dashed border-border/70 dark:border-primary/20 bg-muted/20 dark:bg-muted/10" />
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Skeleton className="h-96 w-full rounded-2xl border border-dashed border-border/70 dark:border-primary/20 bg-muted/20 dark:bg-muted/10" />
-          <Skeleton className="h-96 w-full rounded-2xl border border-dashed border-border/70 dark:border-primary/20 bg-muted/20 dark:bg-muted/10" />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-8">

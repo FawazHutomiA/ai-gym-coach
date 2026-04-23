@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -25,7 +26,12 @@ import { useI18n } from "@/contexts/i18n-context";
 
 export function LandingPage() {
   const { t } = useI18n();
+  const { data: session, status } = useSession();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  const isAuthed = Boolean(session?.user);
+  const accountHref = isAuthed ? "/dashboard" : "/sign-in";
+  const accountLabel = isAuthed ? t("nav.dashboard") : t("auth.signInLink");
 
   const closeMobileNav = () => setMobileNavOpen(false);
 
@@ -156,9 +162,20 @@ export function LandingPage() {
               <a href="#how-it-works" className="text-sm hover:text-primary transition-colors">
                 {t("landing.nav.howItWorks")}
               </a>
-              <Link href="/dashboard">
-                <Button variant="ghost">{t("nav.dashboard")}</Button>
-              </Link>
+              {status === "loading" && !isAuthed ? (
+                <span
+                  className="min-w-[6rem] inline-flex h-9 items-center justify-center rounded-md px-4 text-sm text-muted-foreground"
+                  aria-hidden
+                >
+                  …
+                </span>
+              ) : (
+                <Link href={accountHref}>
+                  <Button variant="ghost" className="min-w-[6rem] inline-flex justify-center">
+                    {accountLabel}
+                  </Button>
+                </Link>
+              )}
               <Link href="/onboarding">
                 <Button>{t("landing.nav.startFree")}</Button>
               </Link>
@@ -195,13 +212,22 @@ export function LandingPage() {
               >
                 {t("landing.nav.howItWorks")}
               </a>
-              <Link
-                href="/dashboard"
-                className="rounded-md px-3 py-2 text-sm hover:bg-muted hover:text-primary"
-                onClick={closeMobileNav}
-              >
-                {t("nav.dashboard")}
-              </Link>
+              {status === "loading" && !isAuthed ? (
+                <span
+                  className="rounded-md px-3 py-2 text-sm text-muted-foreground"
+                  aria-hidden
+                >
+                  …
+                </span>
+              ) : (
+                <Link
+                  href={accountHref}
+                  className="rounded-md px-3 py-2 text-sm hover:bg-muted hover:text-primary"
+                  onClick={closeMobileNav}
+                >
+                  {accountLabel}
+                </Link>
+              )}
               <Link href="/onboarding" onClick={closeMobileNav} className="pt-1">
                 <Button className="w-full">{t("landing.nav.startFree")}</Button>
               </Link>

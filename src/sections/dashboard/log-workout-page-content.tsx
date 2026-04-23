@@ -1,17 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { LineChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/contexts/i18n-context";
+import type { CatalogExerciseRow } from "@/lib/data/exercises-catalog";
+import type { WorkoutSessionDetailResponse } from "@/lib/workout-session-to-detail-json";
 import { WorkoutLogger } from "@/sections/dashboard/workout-logger";
 import { WorkoutSessionList } from "@/sections/dashboard/workout-session-list";
 
-export function LogWorkoutPageContent() {
-  const { t } = useI18n();
-  const [listKey, setListKey] = useState(0);
+type LogWorkoutPageContentProps = {
+  exerciseCatalog: CatalogExerciseRow[];
+  recentSessions: WorkoutSessionDetailResponse[];
+};
 
+export function LogWorkoutPageContent({
+  exerciseCatalog,
+  recentSessions,
+}: LogWorkoutPageContentProps) {
+  const { t } = useI18n();
   return (
     <div className="space-y-8">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-end sm:text-right">
@@ -26,8 +34,8 @@ export function LogWorkoutPageContent() {
         </div>
       </div>
       <div className="space-y-12">
-        <WorkoutLogger onSaved={() => setListKey((k) => k + 1)} />
-        <WorkoutSessionList refreshKey={listKey} onChanged={() => setListKey((k) => k + 1)} />
+        <WorkoutLogger initialCatalog={exerciseCatalog} />
+        <WorkoutSessionList exerciseCatalog={exerciseCatalog} sessions={recentSessions} />
       </div>
     </div>
   );

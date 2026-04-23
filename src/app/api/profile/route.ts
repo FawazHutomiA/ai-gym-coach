@@ -1,8 +1,9 @@
-import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb } from "@/db";
 import { bodyMetricEntries, userProfiles, users } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { getProfilePayload } from "@/lib/data/profile-payload";
 import { requireAppFeature } from "@/lib/auth/require-app-feature";
 
 const patchSchema = z.object({
@@ -26,28 +27,11 @@ export async function GET() {
   const session = guard.session;
 
   try {
-    const db = getDb();
-    const [user] = await db.select().from(users).where(eq(users.id, session.user.id)).limit(1);
-    if (!user) {
+    const payload = await getProfilePayload(session.user.id);
+    if (!payload) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
-
-    const [profile] = await db
-      .select()
-      .from(userProfiles)
-      .where(eq(userProfiles.userId, session.user.id))
-      .limit(1);
-
-    return NextResponse.json({
-      displayName: user.name,
-      email: user.email,
-      phone: profile?.phone ?? "",
-      goal: (profile?.goal ?? "maintenance") as "cutting" | "bulking" | "maintenance",
-      bio: profile?.bio ?? "",
-      heightCm: profile?.heightCm ?? "",
-      weightKg: profile?.weightKg ?? "",
-      emailNotifications: profile?.emailNotifications ?? true,
-    });
+    return NextResponse.json(payload);
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "Failed to load profile" }, { status: 500 });
