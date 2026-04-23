@@ -291,10 +291,11 @@ export function WorkoutHistoryContent({ days, sessions }: WorkoutHistoryContentP
                       tickMargin={4}
                     />
                     <ChartTooltip
-                      cursor={{ fill: "transparent" }}
+                      cursor={false}
+                      wrapperStyle={{ background: "transparent" }}
                       content={
                         <ChartTooltipContent
-                          className="border-border bg-popover text-popover-foreground shadow-md"
+                          className="!border-0 !bg-transparent p-0 !text-foreground !shadow-none"
                           labelFormatter={(_, p) => {
                             const r = p?.[0]?.payload as { date?: string } | undefined;
                             if (r?.date) {
@@ -305,7 +306,12 @@ export function WorkoutHistoryContent({ days, sessions }: WorkoutHistoryContentP
                         />
                       }
                     />
-                    <Bar dataKey="sessions" fill="var(--color-sessions)" radius={[4, 4, 0, 0]} />
+                    <Bar
+                      dataKey="sessions"
+                      fill="var(--color-sessions)"
+                      radius={[4, 4, 0, 0]}
+                      activeBar={false}
+                    />
                   </BarChart>
                 </ChartContainer>
               </CardContent>
