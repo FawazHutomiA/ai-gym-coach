@@ -292,10 +292,9 @@ export function WorkoutHistoryContent({ days, sessions }: WorkoutHistoryContentP
                     />
                     <ChartTooltip
                       cursor={false}
-                      wrapperStyle={{ background: "transparent" }}
                       content={
                         <ChartTooltipContent
-                          className="!border-0 !bg-transparent p-0 !text-foreground !shadow-none"
+                          className="border-border/60 bg-popover text-popover-foreground shadow-md"
                           labelFormatter={(_, p) => {
                             const r = p?.[0]?.payload as { date?: string } | undefined;
                             if (r?.date) {
