@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { format, parseISO } from "date-fns";
+import { eachDayOfInterval, format, isAfter, isBefore, parseISO, startOfDay, subDays } from "date-fns";
+import type { DateRange } from "react-day-picker";
 import { enUS, id as localeId } from "date-fns/locale";
 import {
   Bar,
@@ -14,8 +15,17 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Calendar, LineChart as LineChartIcon, Link2 } from "lucide-react";
+import {
+  Calendar as CalendarIcon,
+  ChevronDown,
+  LineChart as LineChartIcon,
+  Link2,
+  RotateCcw,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ChartContainer,
@@ -31,28 +41,45 @@ import {
 } from "@/components/ui/select";
 import { useI18n } from "@/contexts/i18n-context";
 import type { WorkoutSessionDetailResponse } from "@/lib/workout-session-to-detail-json";
-import {
-  WORKOUT_HISTORY_DAY_OPTIONS,
-  type WorkoutHistoryDays,
-} from "@/lib/workout-history-days";
+import { sessionCalendarDateKey } from "@/lib/workout-date-key";
+import { WORKOUT_HISTORY_DEFAULT_CHART_DAYS } from "@/lib/workout-history-constants";
 import {
   exerciseBestSetTonnage,
   exerciseVolumeInSession,
   sessionVolumeKg,
 } from "@/lib/workout-volume";
+import { clampYmd } from "@/lib/workout-history-filters";
 
-export { WORKOUT_HISTORY_DAY_OPTIONS, parseWorkoutHistoryDays } from "@/lib/workout-history-days";
-
-function dateKeyLocal(iso: string): string {
-  return format(parseISO(iso), "yyyy-MM-dd");
+function buildHistoryUrl(
+  pathname: string,
+  next: { dateFrom: string; dateTo: string },
+): string {
+  const p = new URLSearchParams();
+  p.set("dateFrom", next.dateFrom);
+  p.set("dateTo", next.dateTo);
+  return `${pathname}?${p.toString()}`;
 }
 
 type WorkoutHistoryContentProps = {
-  days: WorkoutHistoryDays;
+  dateFrom: string;
+  dateTo: string;
+  /** Batas data terawal (lookback load dari server) */
+  minYmd: string;
+  /** Batas akhir: hari ini */
+  maxYmd: string;
   sessions: WorkoutSessionDetailResponse[];
+  /** Sesi dengan tanggal di [dateFrom, dateTo] (difilter di server) */
+  sessionsInDateRange: WorkoutSessionDetailResponse[];
 };
 
-export function WorkoutHistoryContent({ days, sessions }: WorkoutHistoryContentProps) {
+export function WorkoutHistoryContent({
+  dateFrom,
+  dateTo,
+  minYmd,
+  maxYmd,
+  sessions,
+  sessionsInDateRange,
+}: WorkoutHistoryContentProps) {
   const { t, locale } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
@@ -61,7 +88,7 @@ export function WorkoutHistoryContent({ days, sessions }: WorkoutHistoryContentP
 
   const exerciseOptions = useMemo(() => {
     const map = new Map<string, { id: string; labelEn: string; labelId: string; total: number }>();
-    for (const s of sessions) {
+    for (const s of sessionsInDateRange) {
       for (const ex of s.exercises) {
         const id = ex.catalogExerciseId;
         const vol = exerciseVolumeInSession(ex);
@@ -71,7 +98,7 @@ export function WorkoutHistoryContent({ days, sessions }: WorkoutHistoryContentP
       }
     }
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
-  }, [sessions]);
+  }, [sessionsInDateRange]);
 
   const [selectedExerciseId, setSelectedExerciseId] = useState<string>("");
   useEffect(() => {
@@ -80,26 +107,56 @@ export function WorkoutHistoryContent({ days, sessions }: WorkoutHistoryContentP
     }
   }, [exerciseOptions, selectedExerciseId]);
 
-  const groupedByDate = useMemo(() => {
-    const map = new Map<string, WorkoutSessionDetailResponse[]>();
-    for (const s of sessions) {
-      const k = dateKeyLocal(s.session.loggedAt);
-      if (!map.has(k)) map.set(k, []);
-      map.get(k)!.push(s);
+  const minDateObj = useMemo(
+    () => startOfDay(parseISO(`${minYmd}T12:00:00`)),
+    [minYmd],
+  );
+  const maxDateObj = useMemo(
+    () => startOfDay(parseISO(`${maxYmd}T12:00:00`)),
+    [maxYmd],
+  );
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  /** Rentang sementara di popover; `router` hanya di-update setelah "Terapkan". */
+  const [pendingDateRange, setPendingDateRange] = useState<DateRange | undefined>(undefined);
+
+  const rangeLabel = useMemo(() => {
+    const fromD = parseISO(`${dateFrom}T12:00:00`);
+    const toD = parseISO(`${dateTo}T12:00:00`);
+    if (dateFrom === dateTo) {
+      return format(fromD, "PPP", { locale: dateLocale });
     }
-    for (const arr of map.values()) {
-      arr.sort(
-        (a, b) =>
-          new Date(b.session.loggedAt).getTime() - new Date(a.session.loggedAt).getTime(),
-      );
+    return `${format(fromD, "d MMM yyyy", { locale: dateLocale })} – ${format(toD, "d MMM yyyy", { locale: dateLocale })}`;
+  }, [dateFrom, dateTo, dateLocale]);
+
+  const applyPendingDateRange = () => {
+    if (!pendingDateRange?.from) return;
+    const fromD = pendingDateRange.from;
+    const toD = pendingDateRange.to ?? pendingDateRange.from;
+    let a = format(startOfDay(fromD), "yyyy-MM-dd");
+    let b = format(startOfDay(toD), "yyyy-MM-dd");
+    a = clampYmd(a, minYmd, maxYmd);
+    b = clampYmd(b, minYmd, maxYmd);
+    if (a > b) [a, b] = [b, a];
+    router.push(buildHistoryUrl(pathname, { dateFrom: a, dateTo: b }));
+    setDatePickerOpen(false);
+  };
+
+  const sessionsByDay = useMemo(() => {
+    const m = new Map<string, WorkoutSessionDetailResponse[]>();
+    for (const s of sessionsInDateRange) {
+      const k = sessionCalendarDateKey(s.session.loggedAt);
+      const list = m.get(k) ?? [];
+      list.push(s);
+      m.set(k, list);
     }
-    return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
-  }, [sessions]);
+    return Array.from(m.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [sessionsInDateRange]);
 
   const dailyVolumeRows = useMemo(() => {
     const map = new Map<string, { volume: number; sessionCount: number }>();
     for (const s of sessions) {
-      const k = dateKeyLocal(s.session.loggedAt);
+      const k = sessionCalendarDateKey(s.session.loggedAt);
+      if (k < dateFrom || k > dateTo) continue;
       const vol = sessionVolumeKg(s);
       const prev = map.get(k) ?? { volume: 0, sessionCount: 0 };
       map.set(k, {
@@ -107,21 +164,25 @@ export function WorkoutHistoryContent({ days, sessions }: WorkoutHistoryContentP
         sessionCount: prev.sessionCount + 1,
       });
     }
-    return Array.from(map.entries())
-      .map(([date, v]) => ({
-        date,
-        label: format(parseISO(`${date}T12:00:00`), "d MMM", { locale: dateLocale }),
+    const from = parseISO(`${dateFrom}T12:00:00`);
+    const to = parseISO(`${dateTo}T12:00:00`);
+    return eachDayOfInterval({ start: from, end: to }).map((d) => {
+      const ymd = format(d, "yyyy-MM-dd");
+      const v = map.get(ymd) ?? { volume: 0, sessionCount: 0 };
+      return {
+        date: ymd,
+        label: format(d, "d MMM", { locale: dateLocale }),
         volume: v.volume,
         sessions: v.sessionCount,
-      }))
-      .sort((a, b) => a.date.localeCompare(b.date));
-  }, [sessions, dateLocale]);
+      };
+    });
+  }, [sessions, dateFrom, dateTo, dateLocale]);
 
   const exerciseDailyRows = useMemo(() => {
     if (!selectedExerciseId) return [];
     const map = new Map<string, { volume: number; bestSet: number }>();
-    for (const s of sessions) {
-      const k = dateKeyLocal(s.session.loggedAt);
+    for (const s of sessionsInDateRange) {
+      const k = sessionCalendarDateKey(s.session.loggedAt);
       const ex = s.exercises.find((e) => e.catalogExerciseId === selectedExerciseId);
       if (!ex) continue;
       const vol = exerciseVolumeInSession(ex);
@@ -132,15 +193,19 @@ export function WorkoutHistoryContent({ days, sessions }: WorkoutHistoryContentP
         bestSet: Math.max(prev.bestSet, best),
       });
     }
-    return Array.from(map.entries())
-      .map(([date, v]) => ({
-        date,
-        label: format(parseISO(`${date}T12:00:00`), "d MMM", { locale: dateLocale }),
+    const from = parseISO(`${dateFrom}T12:00:00`);
+    const to = parseISO(`${dateTo}T12:00:00`);
+    return eachDayOfInterval({ start: from, end: to }).map((d) => {
+      const ymd = format(d, "yyyy-MM-dd");
+      const v = map.get(ymd) ?? { volume: 0, bestSet: 0 };
+      return {
+        date: ymd,
+        label: format(d, "d MMM", { locale: dateLocale }),
         volume: v.volume,
         bestSet: v.bestSet,
-      }))
-      .sort((a, b) => a.date.localeCompare(b.date));
-  }, [sessions, selectedExerciseId, dateLocale]);
+      };
+    });
+  }, [sessionsInDateRange, selectedExerciseId, dateFrom, dateTo, dateLocale]);
 
   const selectedExerciseLabel =
     exerciseOptions.find((e) => e.id === selectedExerciseId) ?? null;
@@ -176,32 +241,125 @@ export function WorkoutHistoryContent({ days, sessions }: WorkoutHistoryContentP
           </h1>
           <p className="text-muted-foreground mt-1 max-w-2xl">{t("workoutHistory.subtitle")}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-muted-foreground">{t("workoutHistory.rangeLabel")}</span>
-          <Select
-            value={String(days)}
-            onValueChange={(v) => {
-              const d = Number(v) as WorkoutHistoryDays;
-              router.push(`${pathname}?days=${d}`);
-            }}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {WORKOUT_HISTORY_DAY_OPTIONS.map((d) => (
-                <SelectItem key={d} value={String(d)}>
-                  {t("workoutHistory.daysOption", { n: d })}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/dashboard/log-workout">
-              <Link2 className="mr-2 size-4" />
-              {t("workoutHistory.backToLog")}
-            </Link>
-          </Button>
+        <div className="flex w-full max-w-2xl flex-col gap-3 lg:ml-auto lg:max-w-none">
+          <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-end sm:gap-x-3 sm:gap-y-2">
+            <div className="flex w-full min-w-0 flex-1 flex-col gap-1.5 sm:min-w-[min(100%,16rem)] sm:max-w-sm">
+              <Label
+                htmlFor="history-date-range"
+                className="text-xs font-medium text-muted-foreground"
+              >
+                {t("workoutHistory.filterByDateLabel")}
+              </Label>
+              <Popover
+                open={datePickerOpen}
+                onOpenChange={(open) => {
+                  if (open) {
+                    setPendingDateRange({
+                      from: parseISO(`${dateFrom}T12:00:00`),
+                      to: parseISO(`${dateTo}T12:00:00`),
+                    });
+                  }
+                  setDatePickerOpen(open);
+                }}
+              >
+                <PopoverTrigger asChild>
+                  <Button
+                    id="history-date-range"
+                    type="button"
+                    variant="outline"
+                    className="h-9 w-full min-w-0 justify-between gap-2 px-3 font-normal"
+                    aria-expanded={datePickerOpen}
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <CalendarIcon
+                        className="size-4 shrink-0 text-muted-foreground"
+                        aria-hidden
+                      />
+                      <span className="truncate text-left text-sm" title={rangeLabel}>
+                        {rangeLabel}
+                      </span>
+                    </span>
+                    <ChevronDown
+                      className="size-4 shrink-0 text-muted-foreground opacity-60"
+                      aria-hidden
+                    />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end" sideOffset={4}>
+                  <div className="flex flex-col">
+                    <Calendar
+                      key={`${dateFrom}|${dateTo}`}
+                      mode="range"
+                      defaultMonth={parseISO(`${dateTo}T12:00:00`)}
+                      numberOfMonths={1}
+                      selected={pendingDateRange}
+                      onSelect={setPendingDateRange}
+                      disabled={(d) => {
+                        const x = startOfDay(d);
+                        return isBefore(x, minDateObj) || isAfter(x, maxDateObj);
+                      }}
+                      locale={dateLocale}
+                      initialFocus
+                    />
+                    <div className="flex items-center justify-end gap-2 border-t border-border bg-muted/20 px-3 py-2.5">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8"
+                        onClick={() => setDatePickerOpen(false)}
+                      >
+                        {t("workoutHistory.cancelDateRange")}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-8"
+                        disabled={!pendingDateRange?.from}
+                        onClick={applyPendingDateRange}
+                      >
+                        {t("workoutHistory.applyDateRange")}
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:pb-px">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="h-9"
+                onClick={() => {
+                  const t0 = new Date();
+                  const toYmd = format(t0, "yyyy-MM-dd");
+                  const fromYmd = format(
+                    subDays(t0, WORKOUT_HISTORY_DEFAULT_CHART_DAYS - 1),
+                    "yyyy-MM-dd",
+                  );
+                  router.push(
+                    buildHistoryUrl(pathname, {
+                      dateFrom: fromYmd,
+                      dateTo: toYmd,
+                    }),
+                  );
+                }}
+              >
+                <RotateCcw className="size-3.5" />
+                {t("workoutHistory.resetAll")}
+              </Button>
+              <Button variant="outline" size="sm" className="h-9" asChild>
+                <Link
+                  href="/dashboard/log-workout"
+                  className="inline-flex items-center gap-2"
+                >
+                  <Link2 className="size-4 shrink-0" />
+                  {t("workoutHistory.backToLog")}
+                </Link>
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -397,72 +555,89 @@ export function WorkoutHistoryContent({ days, sessions }: WorkoutHistoryContentP
             </CardContent>
           </Card>
 
-          <div className="space-y-2">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Calendar className="size-5" />
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold flex items-center gap-2 min-w-0">
+              <CalendarIcon className="size-5 shrink-0" />
               {t("workoutHistory.byDateTitle")}
             </h2>
-            <div className="space-y-6">
-              {groupedByDate.map(([dateKey, list]) => (
-                <section key={dateKey}>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-3 border-b border-border/60 pb-2">
-                    {format(parseISO(`${dateKey}T12:00:00`), "EEEE, d MMMM yyyy", { locale: dateLocale })}
-                  </h3>
-                  <ul className="space-y-3">
-                    {list.map((item) => {
-                      const v = sessionVolumeKg(item);
-                      return (
-                        <li
-                          key={item.session.id}
-                          className="rounded-lg border border-border/80 bg-muted/25 dark:bg-muted/10 p-3 sm:px-4"
-                        >
-                          <div className="space-y-1">
-                            <div className="font-medium">
-                              {item.session.title?.trim() ||
-                                format(parseISO(item.session.loggedAt), "p", { locale: dateLocale })}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {t("workoutHistory.sessionVolume", { kg: v })}{" "}
-                              · {t("workoutLog.exerciseCount", { n: item.exercises.length })}
-                            </div>
-                          </div>
-                          <div className="mt-4 space-y-3 border-t border-border/60 pt-4">
-                            {item.exercises.map((ex, i) => (
-                              <div
-                                key={`${ex.catalogExerciseId}-${i}`}
-                                className="rounded-lg border border-border/70 bg-card/50 dark:bg-card/30 px-3 py-2"
-                              >
-                                <p className="text-sm font-medium text-foreground">
-                                  {locale === "id" ? ex.labelId : ex.labelEn}
-                                </p>
-                                <ul className="mt-2 space-y-1.5 text-sm">
-                                  {ex.sets.map((set, j) => (
-                                    <li
-                                      key={`${ex.catalogExerciseId}-set-${j}`}
-                                      className="flex justify-between gap-3 rounded-md bg-muted/50 dark:bg-muted/20 px-2 py-1.5"
-                                    >
-                                      <span className="text-muted-foreground tabular-nums">
-                                        {t("workoutLog.set", { n: j + 1 })}
-                                      </span>
-                                      <span className="font-medium tabular-nums text-foreground">
-                                        {t("workoutLog.detailSetLine", {
-                                          weight: set.weight?.trim() ? set.weight.trim() : dash,
-                                          reps: set.reps?.trim() ? set.reps.trim() : dash,
-                                        })}
-                                      </span>
-                                    </li>
-                                  ))}
-                                </ul>
+            {sessionsInDateRange.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("workoutHistory.emptyDay")}</p>
+            ) : (
+              <div className="space-y-8">
+                {sessionsByDay.map(([dayKey, daySessions]) => (
+                  <section key={dayKey}>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3 border-b border-border/60 pb-2">
+                      {format(parseISO(`${dayKey}T12:00:00`), "EEEE, d MMMM yyyy", {
+                        locale: dateLocale,
+                      })}
+                    </h3>
+                    <ul className="space-y-3">
+                      {daySessions
+                        .slice()
+                        .sort(
+                          (a, b) =>
+                            new Date(b.session.loggedAt).getTime() -
+                            new Date(a.session.loggedAt).getTime(),
+                        )
+                        .map((item) => {
+                          const v = sessionVolumeKg(item);
+                          return (
+                            <li
+                              key={item.session.id}
+                              className="rounded-lg border border-border/80 bg-muted/25 dark:bg-muted/10 p-3 sm:px-4"
+                            >
+                              <div className="space-y-1">
+                                <div className="font-medium">
+                                  {item.session.title?.trim() ||
+                                    format(
+                                      parseISO(item.session.loggedAt),
+                                      "p",
+                                      { locale: dateLocale },
+                                    )}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {t("workoutHistory.sessionVolume", { kg: v })}{" "}
+                                  · {t("workoutLog.exerciseCount", { n: item.exercises.length })}
+                                </div>
                               </div>
-                            ))}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </section>
-              ))}
-            </div>
+                              <div className="mt-4 space-y-3 border-t border-border/60 pt-4">
+                                {item.exercises.map((ex, i) => (
+                                  <div
+                                    key={`${ex.catalogExerciseId}-${i}`}
+                                    className="rounded-lg border border-border/70 bg-card/50 dark:bg-card/30 px-3 py-2"
+                                  >
+                                    <p className="text-sm font-medium text-foreground">
+                                      {locale === "id" ? ex.labelId : ex.labelEn}
+                                    </p>
+                                    <ul className="mt-2 space-y-1.5 text-sm">
+                                      {ex.sets.map((set, j) => (
+                                        <li
+                                          key={`${ex.catalogExerciseId}-set-${j}`}
+                                          className="flex justify-between gap-3 rounded-md bg-muted/50 dark:bg-muted/20 px-2 py-1.5"
+                                        >
+                                          <span className="text-muted-foreground tabular-nums">
+                                            {t("workoutLog.set", { n: j + 1 })}
+                                          </span>
+                                          <span className="font-medium tabular-nums text-foreground">
+                                            {t("workoutLog.detailSetLine", {
+                                              weight: set.weight?.trim() ? set.weight.trim() : dash,
+                                              reps: set.reps?.trim() ? set.reps.trim() : dash,
+                                            })}
+                                          </span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                ))}
+                              </div>
+                            </li>
+                          );
+                        })}
+                    </ul>
+                  </section>
+                ))}
+              </div>
+            )}
           </div>
         </>
       )}

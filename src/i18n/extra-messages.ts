@@ -127,11 +127,14 @@ export const extraMessagesEn: Record<string, string> = {
   "workoutHistory.subtitle":
     "Your sessions grouped by day, with volume trends and a per-exercise view. Data uses weight × reps on each set (kg).",
   "workoutHistory.chartVolumeTitle": "Total volume (kg) per day",
-  "workoutHistory.chartVolumeDesc": "Sum of (weight × reps) across all exercises and sessions you logged on that calendar day (your device’s date).",
+  "workoutHistory.chartVolumeDesc":
+    "Sum of (weight × reps) per calendar day for the date range you set above (your device’s timezone). Days in that range with no log show as 0.",
   "workoutHistory.chartSessionsTitle": "Sessions per day",
-  "workoutHistory.chartSessionsDesc": "How many workout sessions you completed each day in this range.",
+  "workoutHistory.chartSessionsDesc":
+    "How many sessions you finished on each calendar day in that same date range. Days with no session show as 0.",
   "workoutHistory.chartExerciseTitle": "Volume for one exercise",
-  "workoutHistory.chartExerciseDesc": "Per-day volume for a single exercise. Pick from your most-often logged moves.",
+  "workoutHistory.chartExerciseDesc":
+    "Per-day volume for one exercise in the same date range. Exercises are ordered by total volume in that range.",
   "workoutHistory.selectExercise": "Choose an exercise",
   "workoutHistory.exerciseNoData": "No data for this exercise in the selected range.",
   "workoutHistory.byDateTitle": "By date",
@@ -143,6 +146,13 @@ export const extraMessagesEn: Record<string, string> = {
   "workoutHistory.legendVolume": "Volume (kg)",
   "workoutHistory.legendSessions": "Sessions",
   "workoutHistory.sessionVolume": "Volume {{kg}} kg",
+  "workoutHistory.filterByDateLabel": "Date range",
+  "workoutHistory.resetRange": "Reset range",
+  "workoutHistory.resetDate": "Today",
+  "workoutHistory.resetAll": "Reset",
+  "workoutHistory.applyDateRange": "Apply",
+  "workoutHistory.cancelDateRange": "Cancel",
+  "workoutHistory.emptyDay": "No sessions in the selected date range.",
 
   "common.pageLoading": "Loading…",
   "adjustment.title": "Weekly AI Adjustment",
@@ -382,11 +392,14 @@ export const extraMessagesId: Record<string, string> = {
   "workoutHistory.subtitle":
     "Sesi log dikelompokkan per hari, dengan tren total volume dan grafik per gerakan. Angka = jumlah (berat × rep) per set (kg).",
   "workoutHistory.chartVolumeTitle": "Total volume (kg) per hari",
-  "workoutHistory.chartVolumeDesc": "Jumlah (berat × rep) di semua gerakan dan sesi yang kamu catat di tanggal kalender yang sama (sesuai zona waktu perangkat).",
+  "workoutHistory.chartVolumeDesc":
+    "Jumlah (berat × rep) per hari kalender sesuai rentang tanggal yang kamu pilih di atas (zona waktu perangkat). Hari tanpa log tampil sebagai 0.",
   "workoutHistory.chartSessionsTitle": "Sesi per hari",
-  "workoutHistory.chartSessionsDesc": "Berapa kali kamu selesaikan sesi latihan per hari dalam rentang waktu ini.",
+  "workoutHistory.chartSessionsDesc":
+    "Berapa sesi yang selesai per hari kalender dalam rentang yang sama. Hari tanpa sesi tampil sebagai 0.",
   "workoutHistory.chartExerciseTitle": "Volume satu gerakan",
-  "workoutHistory.chartExerciseDesc": "Volume per hari untuk satu gerakan. Pilih dari gerakan yang paling sering kamu log.",
+  "workoutHistory.chartExerciseDesc":
+    "Volume per hari untuk satu gerakan dalam rentang tanggal yang sama. Urutan gerakan mengikuti total volume di rentang itu.",
   "workoutHistory.selectExercise": "Pilih gerakan",
   "workoutHistory.exerciseNoData": "Tidak ada data untuk gerakan ini dalam rentang yang dipilih.",
   "workoutHistory.byDateTitle": "Per tanggal",
@@ -398,6 +411,13 @@ export const extraMessagesId: Record<string, string> = {
   "workoutHistory.legendVolume": "Volume (kg)",
   "workoutHistory.legendSessions": "Sesi",
   "workoutHistory.sessionVolume": "Volume {{kg}} kg",
+  "workoutHistory.filterByDateLabel": "Rentang tanggal",
+  "workoutHistory.resetRange": "Reset rentang",
+  "workoutHistory.resetDate": "Hari ini",
+  "workoutHistory.resetAll": "Setel ulang",
+  "workoutHistory.applyDateRange": "Terapkan",
+  "workoutHistory.cancelDateRange": "Batal",
+  "workoutHistory.emptyDay": "Tidak ada sesi dalam rentang tanggal yang dipilih.",
 
   "common.pageLoading": "Memuat…",
   "adjustment.title": "Penyesuaian mingguan AI",
