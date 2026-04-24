@@ -23,6 +23,23 @@ export const users = pgTable("users", {
 });
 
 /**
+ * Sesi login (refresh window): identitas = id baris, di-embed ke JWT `sessionId`.
+ * Revoke = `revoked_at` diisi; penghapusan “logout” dan validasi sisi server.
+ */
+export const authSessions = pgTable("auth_sessions", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  /** Ujung jendela refresh (7 hari dari buat) */
+  expiresAt: timestamp("expires_at", { mode: "date" }).notNull(),
+  revokedAt: timestamp("revoked_at", { mode: "date" }),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+/**
  * Profil fitness 1:1 dengan user (bukan kredensial login).
  * `users.name` dipakai sebagai nama tampilan utama; baris ini untuk preferensi & metrik form.
  */
@@ -135,6 +152,11 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   }),
   bodyMetrics: many(bodyMetricEntries),
   workoutSessions: many(workoutSessions),
+  authSessions: many(authSessions),
+}));
+
+export const authSessionsRelations = relations(authSessions, ({ one }) => ({
+  user: one(users, { fields: [authSessions.userId], references: [users.id] }),
 }));
 
 export const userProfilesRelations = relations(userProfiles, ({ one }) => ({
@@ -197,6 +219,7 @@ export const workoutSetsRelations = relations(workoutSets, ({ one }) => ({
 export const dbSchema = {
   users,
   userProfiles,
+  authSessions,
   permissions,
   rolePermissions,
   bodyMetricEntries,
@@ -205,6 +228,7 @@ export const dbSchema = {
   workoutExercises,
   workoutSets,
   usersRelations,
+  authSessionsRelations,
   userProfilesRelations,
   permissionsRelations,
   rolePermissionsRelations,

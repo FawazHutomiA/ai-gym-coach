@@ -31,6 +31,8 @@ export const dictionaries: Record<Locale, Record<string, string>> = {
       "Login server misconfigured. Set AUTH_SECRET in .env (openssl rand -base64 32), restart dev, and ensure DATABASE_URL is correct.",
     "auth.toast.signUpError": "Could not create account",
     "auth.toast.signUpOk": "Account created. You can sign in.",
+    "auth.toast.sessionExpired":
+      "Your session has ended (7-day limit). Please sign in again.",
     "auth.backHome": "Back to home",
 
     "nav.dashboard": "Dashboard",
@@ -299,6 +301,8 @@ export const dictionaries: Record<Locale, Record<string, string>> = {
       "Server login belum dikonfigurasi. Isi AUTH_SECRET di .env (openssl rand -base64 32), restart dev, dan pastikan DATABASE_URL benar.",
     "auth.toast.signUpError": "Tidak dapat membuat akun",
     "auth.toast.signUpOk": "Akun dibuat. Silakan masuk.",
+    "auth.toast.sessionExpired":
+      "Sesi berakhir (batas 7 hari). Silakan masuk lagi.",
     "auth.backHome": "Kembali ke beranda",
 
     "nav.dashboard": "Dasbor",

@@ -3,6 +3,7 @@
 import type { Session } from "next-auth";
 import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "next-themes";
+import { SignOutOnRefreshExpired } from "@/components/auth/sign-out-on-refresh-expired";
 import { Toaster } from "@/components/ui/sonner";
 import { I18nProvider } from "@/contexts/i18n-context";
 
@@ -15,9 +16,10 @@ export function Providers({
   session: Session | null;
 }) {
   return (
-    <SessionProvider session={session}>
+    <SessionProvider refetchInterval={60 * 60} session={session}>
       <I18nProvider>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+          <SignOutOnRefreshExpired />
           {children}
           <Toaster />
         </ThemeProvider>
